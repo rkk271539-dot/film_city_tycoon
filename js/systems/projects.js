@@ -1,13 +1,75 @@
 /**
- * Production Pipeline, Commercial Bidding, and Studio Upgrades System
+ * Production Pipeline, Commercial Bidding, Feature Films & Studio Upgrades System
  * Handles multi-turn commercial shoots, client RFPs, rival studio bidding,
- * itemized cost billing, facility upgrades, and project deliveries.
+ * feature films & web series (Section 3.6), theatrical box office runs,
+ * streaming OTT licensing deals, and studio upgrades.
  */
 
 window.StudioGame = window.StudioGame || {};
 window.StudioGame.Systems = window.StudioGame.Systems || {};
 
 window.StudioGame.Systems.Projects = (function() {
+  /**
+   * Available Cinema Formats (Section 3.6)
+   */
+  const CINEMA_FORMATS = [
+    {
+      id: 'short_film',
+      name: 'Short Film',
+      durationDays: 28, // 4 weeks
+      theatricalWeeks: 0, // YouTube / Festival release
+      baseCost: 800000, // 8 Lakhs
+      icon: '🎞️',
+      description: 'Festival circuit or digital showcase. Low budget, high critical acclaim potential.'
+    },
+    {
+      id: 'web_series',
+      name: 'Web Series Season',
+      durationDays: 75, // 2.5 months
+      theatricalWeeks: 5, // 5 weeks of weekly streaming drops
+      baseCost: 45000000, // 4.5 Cr
+      icon: '📺',
+      description: 'High-concept multi-episode streaming show licensed to OTT giants.'
+    },
+    {
+      id: 'small_film',
+      name: 'Small Budget Indie Film',
+      durationDays: 95, // 3 months
+      theatricalWeeks: 2, // 2-week theatrical run then OTT
+      baseCost: 25000000, // 2.5 Cr
+      icon: '🎭',
+      description: 'Content-driven cinematic drama targeting multiplexes and festival acclaim.'
+    },
+    {
+      id: 'mid_film',
+      name: 'Mid Budget Commercial Film',
+      durationDays: 165, // ~5.5 months
+      theatricalWeeks: 4, // 4-week theatrical run
+      baseCost: 65000000, // 6.5 Cr
+      icon: '🎬',
+      description: 'Mainstream commercial entertainer with star cast, hit songs, and national theatrical release.'
+    },
+    {
+      id: 'big_film',
+      name: 'Big Budget Blockbuster',
+      durationDays: 250, // ~8.5 months (240-270 days)
+      theatricalWeeks: 5, // 5-week mega theatrical run
+      baseCost: 180000000, // 18 Cr
+      icon: '👑',
+      description: 'Pan-India spectacle with megastar cast, massive VFX, and record screen count.'
+    }
+  ];
+
+  const CINEMA_GENRES = [
+    { id: 'action_masala', name: 'Action Masala & Stunts', icon: '💥', multiplier: 1.35 },
+    { id: 'romantic_drama', name: 'Grand Romantic Drama', icon: '💖', multiplier: 1.20 },
+    { id: 'spy_thriller', name: 'Spyverse & Espionage', icon: '🕵️', multiplier: 1.30 },
+    { id: 'horror_comedy', name: 'Horror Comedy', icon: '👻', multiplier: 1.25 },
+    { id: 'mythological_epic', name: 'Mythological Epic', icon: '🏹', multiplier: 1.50 },
+    { id: 'crime_noir', name: 'Underworld Crime & Mafia', icon: '🔫', multiplier: 1.15 },
+    { id: 'social_satire', name: 'Social Comedy & Satire', icon: '🎭', multiplier: 1.10 }
+  ];
+
   /**
    * Ensure studio project state structure exists and is healthy
    */
@@ -35,7 +97,7 @@ window.StudioGame.Systems.Projects = (function() {
     const rivals = contractsData.rivalBidderNames;
 
     const newBids = [];
-    const count = 3 + Math.floor(Math.random() * 2); // 3 to 4 RFPs
+    const count = 3 + Math.floor(Math.random() * 2);
 
     for (let i = 0; i < count; i++) {
       const client = clients[Math.floor(Math.random() * clients.length)];
@@ -45,17 +107,15 @@ window.StudioGame.Systems.Projects = (function() {
       const format = isAd ? 'Short Ad Film' : 'Commercial Photoshoot';
       const durationDays = isAd ? (7 + Math.floor(Math.random() * 8)) : (1 + Math.floor(Math.random() * 3));
       
-      // Base client budget: Photoshoots ₹4L - ₹10L, Ads ₹12L - ₹32L
       const baseBudget = isAd
         ? Math.round((1200000 + Math.random() * 1800000) * client.budgetMultiplier)
         : Math.round((400000 + Math.random() * 600000) * client.budgetMultiplier);
 
-      // Select 2 rival studios bidding on this contract
       const competingRivals = [];
       const shuffledRivals = [...rivals].sort(() => 0.5 - Math.random());
       for (let r = 0; r < 2; r++) {
         const rivalName = shuffledRivals[r];
-        const bidRatio = 0.82 + (Math.random() * 0.22); // bids 82% to 104% of client budget
+        const bidRatio = 0.82 + (Math.random() * 0.22);
         const qualityScore = 40 + Math.floor(Math.random() * 35);
         competingRivals.push({
           name: rivalName,
@@ -97,8 +157,6 @@ window.StudioGame.Systems.Projects = (function() {
     }
 
     const rfp = state.bids[rfpIndex];
-
-    // Check studio capacity
     const activeCount = state.studio.projects.length;
     const maxCapacity = getStudioCapacity(state);
     if (activeCount >= maxCapacity) {
@@ -108,7 +166,6 @@ window.StudioGame.Systems.Projects = (function() {
       };
     }
 
-    // Upfront production deposit required (25% of bid amount for crew/rent deposits)
     const upfrontDeposit = Math.round(playerBidAmount * 0.25);
     if (state.studio.cash < upfrontDeposit) {
       return {
@@ -117,43 +174,24 @@ window.StudioGame.Systems.Projects = (function() {
       };
     }
 
-    // Calculate player's packaging quality
     let playerQuality = state.studio.reputation;
-    
-    // Skill bonus: Talented Writer (+25% Script/Concept Quality)
-    if (state.player.skill === 'talented_writer') {
-      playerQuality *= 1.25;
-    }
-    // Skill bonus: Marketing Guru (+25% Campaign buzz)
-    if (state.player.skill === 'marketing_guru') {
-      playerQuality *= 1.15;
-    }
+    if (state.player.skill === 'talented_writer') playerQuality *= 1.25;
+    if (state.player.skill === 'marketing_guru') playerQuality *= 1.15;
+    if (state.wife && state.wife.currentRoleId === 'studio_creative_head') playerQuality *= 1.10;
 
-    // Wife perk: Studio Creative Head (+10% Quality)
-    if (state.wife && state.wife.currentRoleId === 'studio_creative_head') {
-      playerQuality *= 1.10;
-    }
-    // Installed upgrades quality bonus
     const upgradeBonuses = getUpgradePerks(state);
     playerQuality += upgradeBonuses.qualityBonus;
 
-    // Evaluate Bids: Client weighs (Budget - Bid) and (Committed Quality)
-    // Sharp Negotiator skill bonus gives +25% scoring advantage
     let negotiatorMultiplier = 1.0;
-    if (state.player.skill === 'sharp_negotiator') {
-      negotiatorMultiplier = 1.25;
-    }
+    if (state.player.skill === 'sharp_negotiator') negotiatorMultiplier = 1.25;
 
-    // Player Bid Score
-    // Client dislikes bids over max budget
     const priceRatio = playerBidAmount / rfp.clientMaxBudget;
     let priceScore = (1.1 - priceRatio) * 100;
-    if (priceRatio > 1.05) priceScore -= 40; // Penalize over-budget bids
+    if (priceRatio > 1.05) priceScore -= 40;
 
     let playerScore = (priceScore * 0.5 + playerQuality * 0.5) * negotiatorMultiplier;
     playerScore += (Math.random() * 12 - 6);
 
-    // Evaluate Rivals
     let bestRival = null;
     let bestRivalScore = -999;
 
@@ -167,14 +205,11 @@ window.StudioGame.Systems.Projects = (function() {
       }
     });
 
-    // Remove RFP from pool
     state.bids.splice(rfpIndex, 1);
 
     if (playerScore >= bestRivalScore) {
-      // Player WINS the bid!
       state.studio.cash -= upfrontDeposit;
 
-      // Adjust duration based on editing suite upgrade if installed
       let finalDuration = rfp.durationDays;
       if (upgradeBonuses.speedMultiplier) {
         finalDuration = Math.max(1, Math.round(finalDuration * upgradeBonuses.speedMultiplier));
@@ -197,7 +232,6 @@ window.StudioGame.Systems.Projects = (function() {
 
       state.studio.projects.push(newProject);
 
-      // Log success
       state.feed.unshift({
         id: 'evt_bid_win_' + Date.now(),
         day: state.clock.day,
@@ -215,7 +249,6 @@ window.StudioGame.Systems.Projects = (function() {
         message: `Congratulations! ${rfp.clientName} selected your studio over ${bestRival.name}!`
       };
     } else {
-      // Player LOST the bid
       return {
         won: false,
         winnerName: bestRival.name,
@@ -226,16 +259,93 @@ window.StudioGame.Systems.Projects = (function() {
   }
 
   /**
-   * Calculate Itemized Cost Bill for a Custom Project before signing
+   * Launch a Major Cinema Production (Section 3.6)
+   */
+  function launchCinemaFeature(state, params) {
+    ensureProjectState(state);
+    const activeCount = state.studio.projects.length;
+    const maxCapacity = getStudioCapacity(state);
+    if (activeCount >= maxCapacity) {
+      return { success: false, error: `Studio floors at capacity (${activeCount}/${maxCapacity}).` };
+    }
+
+    const formatDef = CINEMA_FORMATS.find(f => f.id === params.formatId) || CINEMA_FORMATS[2];
+    const genreDef = CINEMA_GENRES.find(g => g.id === params.genreId) || CINEMA_GENRES[0];
+
+    const leadActor = (state.talent || []).find(t => t.id === params.leadActorId);
+    const leadActress = (state.talent || []).find(t => t.id === params.leadActressId);
+
+    let actorFee = leadActor ? (leadActor.contractStatus === 'signed_player' ? Math.round(leadActor.averageFee * 0.2) : leadActor.averageFee) : 500000;
+    let actressFee = leadActress ? (leadActress.contractStatus === 'signed_player' ? Math.round(leadActress.averageFee * 0.2) : leadActress.averageFee) : 500000;
+
+    let subtotalCost = formatDef.baseCost + actorFee + actressFee;
+
+    if (state.player.skill === 'brilliant_manager') {
+      subtotalCost *= 0.75;
+    }
+
+    const totalCost = Math.round(subtotalCost);
+    if (state.studio.cash < totalCost) {
+      return {
+        success: false,
+        error: `Insufficient studio funds to greenlight production (Requires ${window.StudioGame.Systems.Finance.formatRupees(totalCost)}).`
+      };
+    }
+
+    state.studio.cash -= totalCost;
+
+    const title = params.title || `${genreDef.name} Blockbuster`;
+    const newFeature = {
+      id: 'film_' + Date.now(),
+      name: title,
+      title: title,
+      format: formatDef.name,
+      formatId: formatDef.id,
+      genreName: genreDef.name,
+      genreIcon: genreDef.icon,
+      totalDays: formatDef.durationDays,
+      theatricalWeeks: formatDef.theatricalWeeks,
+      daysElapsed: 0,
+      theatricalDayCount: 0,
+      theatricalWeekCurrent: 1,
+      theatricalGrossTotal: 0,
+      theatricalGrossWeek: 0,
+      upfrontInvested: totalCost,
+      agreedPayout: formatDef.theatricalWeeks === 0 ? Math.round(totalCost * (1.35 + Math.random() * 0.40)) : 0,
+      verdict: formatDef.theatricalWeeks === 0 ? 'Critically Acclaimed Festival Winner' : null,
+      leadActorName: leadActor ? leadActor.name : 'Unknown Star',
+      leadActressName: leadActress ? leadActress.name : 'Unknown Star',
+      leadActorId: leadActor?.id,
+      leadActressId: leadActress?.id,
+      stage: 'Phase 1: Script & Packaging',
+      inTheatres: false
+    };
+
+    state.studio.projects.push(newFeature);
+
+    state.feed.unshift({
+      id: 'evt_film_launch_' + Date.now(),
+      day: state.clock.day,
+      date: state.clock.formattedDate,
+      category: 'Cinema Feature',
+      title: `Grand Mahurat: ${title}`,
+      body: `${state.studio.name} greenlit ${formatDef.name} "${title}" starring ${newFeature.leadActorName} & ${newFeature.leadActressName}. Total budget: ${window.StudioGame.Systems.Finance.formatRupees(totalCost)}.`,
+      icon: '🎬'
+    });
+
+    return { success: true, project: newFeature };
+  }
+
+  /**
+   * Calculate Itemized Cost Bill for Custom Photoshoot / Ad
    */
   function calculateCostBill(state, params = {}) {
     ensureProjectState(state);
     const format = params.format || 'Commercial Photoshoot';
     const isAd = format === 'Short Ad Film';
-    const talent = params.talent || window.StudioGame.Data.Contracts.starterTalent[0];
+    const talent = params.talent || (state.talent && state.talent[0]) || { name: 'Simran Ahuja', averageFee: 35000 };
 
-    // Base Costs
-    let modelFee = talent.flatFee || 40000;
+    let modelFee = talent.flatFee || talent.averageFee || 40000;
     let studioRent = isAd ? 65000 : 20000;
     let cameraEquipmentRent = isAd ? 45000 : 18000;
     let crewAndLighting = isAd ? 55000 : 22000;
@@ -243,30 +353,24 @@ window.StudioGame.Systems.Projects = (function() {
     let wardrobeAndProps = isAd ? 30000 : 12000;
     let postProductionBuffer = isAd ? 25000 : 8000;
 
-    // Upgrades modifiers
     const perks = getUpgradePerks(state);
     if (perks.wardrobeDiscount) {
       wardrobeAndProps *= (1 - perks.wardrobeDiscount);
     }
 
-    // Wife Perk: Studio Head of Casting reduces talent cost by 10%
     if (state.wife && state.wife.currentRoleId === 'studio_casting_head') {
       modelFee *= 0.90;
     }
 
     let subtotal = modelFee + studioRent + cameraEquipmentRent + crewAndLighting + locationAndPermits + wardrobeAndProps + postProductionBuffer;
-
-    // Founder Perk: Brilliant Manager cuts production costs by 25%
     let managerDiscount = 0;
     if (state.player.skill === 'brilliant_manager') {
       managerDiscount = subtotal * 0.25;
       subtotal -= managerDiscount;
     }
 
-    const contingencyBuffer = Math.round(subtotal * 0.08); // 8% overrun reserve
+    const contingencyBuffer = Math.round(subtotal * 0.08);
     const totalCost = Math.round(subtotal + contingencyBuffer);
-
-    // Projected Syndication Return (1.35x to 1.75x)
     const projectedRevenue = Math.round(totalCost * (isAd ? 1.60 : 1.45));
 
     return {
@@ -291,9 +395,6 @@ window.StudioGame.Systems.Projects = (function() {
     };
   }
 
-  /**
-   * Finalize and sign a custom project
-   */
   function launchCustomProject(state, params = {}) {
     ensureProjectState(state);
     const activeCount = state.studio.projects.length;
@@ -307,7 +408,6 @@ window.StudioGame.Systems.Projects = (function() {
       return { success: false, error: 'Insufficient studio funds to cover the finalized project bill.' };
     }
 
-    // Deduct cost from studio cash
     state.studio.cash -= bill.totalCost;
 
     const newProject = {
@@ -341,82 +441,185 @@ window.StudioGame.Systems.Projects = (function() {
   }
 
   /**
-   * Daily tick for projects & studio operations
+   * Daily Turn Tick for all studio projects
    */
   function dailyTick(state) {
     ensureProjectState(state);
 
-    // 1. Advance active projects
     const completedIndices = [];
-    const completedEvents = [];
 
     state.studio.projects.forEach((proj, idx) => {
-      proj.daysElapsed += 1;
+      // 1. Feature film in theatrical release
+      if (proj.inTheatres) {
+        tickTheatricalRun(state, proj, idx, completedIndices);
+        return;
+      }
 
-      // Update stage progression
+      // 2. Normal production phase progression
+      proj.daysElapsed += 1;
       const progressRatio = proj.daysElapsed / proj.totalDays;
-      if (progressRatio < 0.3) {
-        proj.stage = 'Pre-Production & Packaging';
-      } else if (progressRatio < 0.8) {
-        proj.stage = 'Active Floor Shoot';
-      } else if (progressRatio < 1.0) {
-        proj.stage = 'Post-Production & Client Review';
+
+      if (proj.theatricalWeeks && proj.theatricalWeeks > 0) {
+        // Feature Film / Web Series multi-stage pipeline
+        if (progressRatio < 0.25) {
+          proj.stage = 'Phase 1: Pre-Production & Casting';
+        } else if (progressRatio < 0.65) {
+          proj.stage = 'Phase 2: Principal Photography (Floor Shoot)';
+        } else if (progressRatio < 0.90) {
+          proj.stage = 'Phase 3: Post-Production & Censor Board';
+        } else if (progressRatio < 1.0) {
+          proj.stage = 'Phase 4: Pan-India Marketing Blitz & Trailer';
+        } else {
+          // ENTER THEATRICAL RELEASE!
+          proj.inTheatres = true;
+          proj.theatricalWeekCurrent = 1;
+          proj.theatricalDayCount = 0;
+          proj.stage = 'Phase 5: In Theatres & Multiplexes';
+
+          const openingWeekend = Math.round(proj.upfrontInvested * (0.65 + Math.random() * 0.70));
+          proj.theatricalGrossWeek = openingWeekend;
+          proj.theatricalGrossTotal = openingWeekend;
+
+          state.feed.unshift({
+            id: 'evt_theatre_open_' + Date.now(),
+            day: state.clock.day,
+            date: state.clock.formattedDate,
+            category: 'Box Office Premiere',
+            title: `Pan-India Release: ${proj.name}!`,
+            body: `"${proj.name}" debuted across 3,800 screens nationwide! Sensational opening weekend collected ${window.StudioGame.Systems.Finance.formatRupees(openingWeekend)}.`,
+            icon: '🎟️'
+          });
+        }
       } else {
-        proj.stage = 'Delivery & Wrap';
-        completedIndices.push(idx);
+        // Commercial Shoot or Short Film
+        if (progressRatio < 0.3) {
+          proj.stage = 'Pre-Production & Packaging';
+        } else if (progressRatio < 0.8) {
+          proj.stage = 'Active Floor Shoot';
+        } else if (progressRatio < 1.0) {
+          proj.stage = 'Post-Production & Final Master';
+        } else {
+          proj.stage = 'Delivery & Wrap';
+          completedIndices.push(idx);
+        }
       }
     });
 
-    // Handle completed deliveries (in reverse to preserve indices)
+    // Handle completed commercial shoots and short films
     for (let i = completedIndices.length - 1; i >= 0; i--) {
       const completedProj = state.studio.projects.splice(completedIndices[i], 1)[0];
-      
-      // Credit full revenue payout to studio cash
-      state.studio.cash += completedProj.agreedPayout;
-      state.studio.reputation = Math.min(100, state.studio.reputation + 2);
-
-      // Record in completed archive
-      completedProj.deliveredDate = state.clock.formattedDate;
-      completedProj.profitEarned = completedProj.agreedPayout - completedProj.upfrontInvested;
-      state.studio.completedProjects.unshift(completedProj);
-
-      const netProfitFormatted = window.StudioGame.Systems.Finance.formatRupees(completedProj.profitEarned, { forcePlus: true });
-      const payoutFormatted = window.StudioGame.Systems.Finance.formatRupees(completedProj.agreedPayout);
-
-      const msg = `🎬 "${completedProj.name}" delivered! Payout of ${payoutFormatted} credited to studio (${netProfitFormatted} net profit).`;
-      completedEvents.push(msg);
-
-      state.feed.unshift({
-        id: 'evt_wrap_' + Date.now() + '_' + i,
-        day: state.clock.day,
-        date: state.clock.formattedDate,
-        category: 'Production',
-        title: `Shoot Delivered: ${completedProj.name}`,
-        body: msg,
-        icon: '💰'
-      });
+      wrapCommercialShoot(state, completedProj);
     }
 
-    // 2. Periodic RFP bids pool refresh (every 14 days or if empty)
+    // Refresh RFP bids pool
     if (state.clock.day % 14 === 0 || state.bids.length === 0) {
       refreshAvailableBids(state);
     }
   }
 
-  /**
-   * Helper to compute studio max concurrent shoots capacity
-   */
+  function tickTheatricalRun(state, proj, idx, completedIndices) {
+    proj.theatricalDayCount += 1;
+    const dailyTicketShare = Math.round(proj.theatricalGrossWeek / 7);
+    proj.theatricalGrossTotal += dailyTicketShare;
+    
+    // 50% distributor net share credited to studio
+    state.studio.cash += Math.round(dailyTicketShare * 0.50);
+
+    // End of theatrical week
+    if (proj.theatricalDayCount % 7 === 0) {
+      proj.theatricalWeekCurrent += 1;
+      proj.theatricalGrossWeek = Math.round(proj.theatricalGrossWeek * (0.50 + Math.random() * 0.25));
+
+      if (proj.theatricalWeekCurrent > proj.theatricalWeeks || proj.theatricalGrossWeek < 2000000) {
+        state.studio.projects.splice(idx, 1);
+        wrapCinemaFeature(state, proj);
+      }
+    }
+  }
+
+  function wrapCommercialShoot(state, completedProj) {
+    if (!completedProj.agreedPayout) {
+      completedProj.agreedPayout = Math.round((completedProj.upfrontInvested || 800000) * 1.45);
+    }
+    state.studio.cash += completedProj.agreedPayout;
+    state.studio.reputation = Math.min(100, state.studio.reputation + 2);
+
+    completedProj.deliveredDate = state.clock.formattedDate;
+    completedProj.profitEarned = completedProj.agreedPayout - (completedProj.upfrontInvested || 0);
+    completedProj.verdict = completedProj.verdict || 'Commercial Hit';
+    state.studio.completedProjects.unshift(completedProj);
+
+    const netProfitFormatted = window.StudioGame.Systems.Finance.formatRupees(completedProj.profitEarned, { forcePlus: true });
+    const payoutFormatted = window.StudioGame.Systems.Finance.formatRupees(completedProj.agreedPayout);
+
+    state.feed.unshift({
+      id: 'evt_wrap_' + Date.now(),
+      day: state.clock.day,
+      date: state.clock.formattedDate,
+      category: 'Production',
+      title: `Shoot Delivered: ${completedProj.name}`,
+      body: `"${completedProj.name}" delivered! Payout of ${payoutFormatted} credited to studio (${netProfitFormatted} net profit).`,
+      icon: '💰'
+    });
+  }
+
+  function wrapCinemaFeature(state, proj) {
+    const roi = proj.theatricalGrossTotal / proj.upfrontInvested;
+    let verdict = 'Semi-Hit';
+    if (roi >= 2.5) verdict = 'All-Time Blockbuster';
+    else if (roi >= 1.8) verdict = 'Blockbuster';
+    else if (roi >= 1.3) verdict = 'Super Hit';
+    else if (roi >= 1.0) verdict = 'Hit';
+    else if (roi >= 0.7) verdict = 'Average';
+    else verdict = 'Flop';
+
+    const ottWindfall = Math.round(proj.theatricalGrossTotal * 0.40);
+    state.studio.cash += ottWindfall;
+    state.studio.reputation = Math.min(100, state.studio.reputation + (roi >= 1.5 ? 6 : 2));
+
+    proj.deliveredDate = state.clock.formattedDate;
+    proj.verdict = verdict;
+    proj.ottLicense = ottWindfall;
+    proj.profitEarned = (proj.theatricalGrossTotal * 0.50 + ottWindfall) - proj.upfrontInvested;
+
+    state.studio.completedProjects.unshift(proj);
+
+    [proj.leadActorId, proj.leadActressId].forEach(talentId => {
+      if (!talentId) return;
+      const t = (state.talent || []).find(star => star.id === talentId);
+      if (t) {
+        t.pastTopFilms = t.pastTopFilms || [];
+        t.pastTopFilms.unshift({
+          title: proj.name,
+          year: state.clock.currentYear,
+          verdict: verdict
+        });
+        if (roi >= 1.3) {
+          t.fans = Math.round(t.fans * 1.15);
+          t.reputation = Math.min(100, t.reputation + 3);
+        }
+      }
+    });
+
+    state.feed.unshift({
+      id: 'evt_film_verdict_' + Date.now(),
+      day: state.clock.day,
+      date: state.clock.formattedDate,
+      category: 'Trade Box Office',
+      title: `Box Office Verdict: ${proj.name} is a ${verdict}!`,
+      body: `Final box office gross reached ${window.StudioGame.Systems.Finance.formatRupees(proj.theatricalGrossTotal)}. Streaming rights licensed to NetPrime for ${window.StudioGame.Systems.Finance.formatRupees(ottWindfall)}.`,
+      icon: '🏆'
+    });
+  }
+
   function getStudioCapacity(state) {
-    let capacity = 2; // base capacity
+    let capacity = 2;
     if (state.studio.upgrades && state.studio.upgrades.includes('sound_stage_tier2')) {
       capacity += 1;
     }
     return capacity;
   }
 
-  /**
-   * Computes upgrade perks
-   */
   function getUpgradePerks(state) {
     const perks = {
       qualityBonus: 0,
@@ -426,7 +629,6 @@ window.StudioGame.Systems.Projects = (function() {
     };
 
     if (!state.studio.upgrades) return perks;
-
     const catalog = window.StudioGame.Data.Upgrades || [];
     state.studio.upgrades.forEach(upgId => {
       const upg = catalog.find(u => u.id === upgId);
@@ -437,60 +639,50 @@ window.StudioGame.Systems.Projects = (function() {
         if (upg.satisfactionBonus) perks.satisfactionBonus += upg.satisfactionBonus;
       }
     });
-
     return perks;
   }
 
-  /**
-   * Purchase a Studio Facility Upgrade
-   */
   function purchaseUpgrade(state, upgradeId) {
     ensureProjectState(state);
     const catalog = window.StudioGame.Data.Upgrades || [];
     const upg = catalog.find(u => u.id === upgradeId);
-    if (!upg) return { success: false, error: 'Upgrade not found.' };
+    if (!upg) return { success: false, error: 'Upgrade not found' };
 
     if (state.studio.upgrades.includes(upgradeId)) {
-      return { success: false, error: 'Upgrade already installed at your studio.' };
+      return { success: false, error: 'Upgrade already installed on studio lot.' };
     }
 
     if (state.studio.cash < upg.cost) {
-      return { success: false, error: `Insufficient studio funds. Requires ${window.StudioGame.Systems.Finance.formatRupees(upg.cost)}.` };
+      return {
+        success: false,
+        error: `Insufficient studio funds (Requires ${window.StudioGame.Systems.Finance.formatRupees(upg.cost)}).`
+      };
     }
 
-    // Deduct cost and add upgrade
     state.studio.cash -= upg.cost;
+    state.studio.facilitiesValue += Math.round(upg.cost * 0.85);
     state.studio.upgrades.push(upgradeId);
-
-    // Increase studio facilities valuation directly
-    state.studio.facilitiesValue = (state.studio.facilitiesValue || 0) + upg.assetValuationBoost;
-
-    // Recalculate studio net worth
-    if (window.StudioGame.Systems.Finance) {
-      window.StudioGame.Systems.Finance.dailyTick(state);
-    }
 
     state.feed.unshift({
       id: 'evt_upg_' + Date.now(),
       day: state.clock.day,
       date: state.clock.formattedDate,
-      category: 'Facilities',
-      title: `Studio Upgrade Installed: ${upg.name}`,
-      body: `Commissioned ${upg.name}. Studio valuation boosted by ${window.StudioGame.Systems.Finance.formatRupees(upg.assetValuationBoost)}!`,
+      category: 'Studio',
+      title: `Facility Installed: ${upg.name}`,
+      body: `Invested ${window.StudioGame.Systems.Finance.formatRupees(upg.cost)} into ${upg.name}. Studio asset valuation boosted!`,
       icon: '🏗️'
     });
 
-    return {
-      success: true,
-      upgrade: upg,
-      message: `Successfully commissioned ${upg.name}! Studio valuation boosted by ${window.StudioGame.Systems.Finance.formatRupees(upg.assetValuationBoost)}.`
-    };
+    return { success: true, upgrade: upg };
   }
 
   return {
+    CINEMA_FORMATS,
+    CINEMA_GENRES,
     ensureProjectState,
     refreshAvailableBids,
     submitBid,
+    launchCinemaFeature,
     calculateCostBill,
     launchCustomProject,
     dailyTick,

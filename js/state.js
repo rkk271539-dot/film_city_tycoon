@@ -7,7 +7,7 @@
 window.StudioGame = window.StudioGame || {};
 
 window.StudioGame.State = (function() {
-  const CURRENT_VERSION = '0.3.0';
+  const CURRENT_VERSION = '1.0.0';
   const STORAGE_PREFIX = 'filmy_tycoon_';
   const AUTOSAVE_KEY = STORAGE_PREFIX + 'autosave';
   const AUTOSAVE_HISTORY_KEY = STORAGE_PREFIX + 'autosave_history';
@@ -52,7 +52,7 @@ window.StudioGame.State = (function() {
         age: parseInt(params.wifeAge, 10) || 25,
         avatar: params.wifeAvatar || window.StudioGame.Face.generate({ gender: 'female', seed: 'wife' }),
         netWorth: wifeNetWorth,
-        openness: 10, // Base openness (0-100), deep mechanics in v1.2
+        openness: 10, // Base openness (0-100)
         relationship: 95, // Loyalty / connection meter (0-100)
         currentRoleId: 'studio_creative_head',
         currentRole: 'Studio Creative Head',
@@ -120,6 +120,18 @@ window.StudioGame.State = (function() {
     if (window.StudioGame.Systems.Projects) {
       window.StudioGame.Systems.Projects.ensureProjectState(state);
     }
+    if (window.StudioGame.Systems.Talent) {
+      window.StudioGame.Systems.Talent.ensureTalentState(state);
+    }
+    if (window.StudioGame.Systems.Studios) {
+      window.StudioGame.Systems.Studios.ensureStudiosState(state);
+    }
+    if (window.StudioGame.Systems.Market) {
+      window.StudioGame.Systems.Market.ensureMarketState(state);
+    }
+    if (window.StudioGame.Systems.News) {
+      window.StudioGame.Systems.News.ensureNewsState(state);
+    }
 
     return state;
   }
@@ -149,80 +161,66 @@ window.StudioGame.State = (function() {
         try { history = JSON.parse(rawHistory); } catch (e) { history = []; }
       }
 
+      // Add current checkpoint
       history.unshift({
-        timestamp: Date.now(),
         day: activeState.clock.day,
         date: activeState.clock.formattedDate,
+        savedAt: new Date().toISOString(),
         playerNetWorth: activeState.player.netWorth,
-        data: serialized
+        stateSnapshot: serialized
       });
 
-      // Keep only recent checkpoints
+      // Keep only up to MAX_ROLLBACK_SAVES
       if (history.length > MAX_ROLLBACK_SAVES) {
         history = history.slice(0, MAX_ROLLBACK_SAVES);
       }
       localStorage.setItem(AUTOSAVE_HISTORY_KEY, JSON.stringify(history));
+
       return true;
-    } catch (err) {
-      console.warn('Autosave failed:', err);
+    } catch (e) {
+      console.error('Autosave failed:', e);
       return false;
     }
   }
 
-  /**
-   * Get list of rollback points
-   */
+  function hasSavedGame() {
+    return localStorage.getItem(AUTOSAVE_KEY) !== null;
+  }
+
   function getRollbackCheckpoints() {
     try {
       const raw = localStorage.getItem(AUTOSAVE_HISTORY_KEY);
-      if (!raw) return [];
-      const list = JSON.parse(raw);
-      return list.map((item, idx) => ({
-        index: idx,
-        day: item.day,
-        date: item.date,
-        time: new Date(item.timestamp).toLocaleTimeString(),
-        playerNetWorth: item.playerNetWorth
-      }));
+      return raw ? JSON.parse(raw) : [];
     } catch (e) {
       return [];
     }
   }
 
-  /**
-   * Restore from a rolling rollback index
-   */
-  function restoreRollback(index) {
+  function restoreRollback(checkpointIndex) {
+    const list = getRollbackCheckpoints();
+    if (!list[checkpointIndex]) return false;
     try {
-      const raw = localStorage.getItem(AUTOSAVE_HISTORY_KEY);
-      if (!raw) return false;
-      const list = JSON.parse(raw);
-      if (!list[index] || !list[index].data) return false;
-
-      const restored = JSON.parse(list[index].data);
+      const restored = JSON.parse(list[checkpointIndex].stateSnapshot);
       activeState = validateAndMigrate(restored);
       autosave();
       return true;
-    } catch (err) {
-      console.error('Failed to restore rollback:', err);
+    } catch (e) {
+      console.error('Failed to restore rollback:', e);
       return false;
     }
   }
 
-  /**
-   * Manual save slot functions (Slots 1, 2, 3)
-   */
-  function saveToSlot(slotId, slotName = null) {
+  function saveToSlot(slotId) {
     if (!activeState) return false;
     try {
+      activeState.meta.lastSavedAt = new Date().toISOString();
       const payload = {
         slotId,
-        slotName: slotName || `Save Slot ${slotId}`,
         savedAt: new Date().toISOString(),
         day: activeState.clock.day,
         date: activeState.clock.formattedDate,
         studioName: activeState.studio.name,
-        playerNetWorth: activeState.player.netWorth,
+        netWorth: activeState.player.netWorth,
         state: activeState
       };
       localStorage.setItem(MANUAL_SLOTS_PREFIX + slotId, JSON.stringify(payload));
@@ -252,15 +250,14 @@ window.StudioGame.State = (function() {
     try {
       const raw = localStorage.getItem(MANUAL_SLOTS_PREFIX + slotId);
       if (!raw) return null;
-      const p = JSON.parse(raw);
+      const parsed = JSON.parse(raw);
       return {
-        slotId: p.slotId,
-        slotName: p.slotName,
-        savedAt: new Date(p.savedAt).toLocaleString(),
-        day: p.day,
-        date: p.date,
-        studioName: p.studioName,
-        playerNetWorth: p.playerNetWorth
+        slotId,
+        savedAt: parsed.savedAt,
+        day: parsed.day,
+        date: parsed.date,
+        studioName: parsed.studioName,
+        netWorth: parsed.netWorth
       };
     } catch (e) {
       return null;
@@ -271,16 +268,6 @@ window.StudioGame.State = (function() {
     localStorage.removeItem(MANUAL_SLOTS_PREFIX + slotId);
   }
 
-  /**
-   * Check if an active autosave exists
-   */
-  function hasSavedGame() {
-    return !!localStorage.getItem(AUTOSAVE_KEY);
-  }
-
-  /**
-   * Load autosaved game
-   */
   function loadAutosave() {
     try {
       const raw = localStorage.getItem(AUTOSAVE_KEY);
@@ -294,38 +281,36 @@ window.StudioGame.State = (function() {
     }
   }
 
-  /**
-   * Export save state to downloadable JSON file
-   */
   function exportSaveToFile() {
-    if (!activeState) return;
-    const jsonStr = JSON.stringify(activeState, null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    const safeStudio = (activeState.studio.name || 'studio').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    link.download = `film_city_${safeStudio}_day${activeState.clock.day}_v${CURRENT_VERSION}.json`;
-    link.href = url;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    if (!activeState) return false;
+    try {
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(activeState, null, 2));
+      const downloadAnchor = document.createElement('a');
+      const filename = `filmy_tycoon_${activeState.studio.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}_day${activeState.clock.day}.json`;
+      downloadAnchor.setAttribute('href', dataStr);
+      downloadAnchor.setAttribute('download', filename);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      return true;
+    } catch (e) {
+      console.error('Export save failed:', e);
+      return false;
+    }
   }
 
-  /**
-   * Import save state from JSON string or file
-   */
   function importSaveFromJson(jsonString) {
     try {
       const parsed = JSON.parse(jsonString);
-      if (!parsed || !parsed.player || !parsed.clock) {
-        throw new Error('Invalid save file structure.');
+      if (!parsed || !parsed.player || !parsed.studio) {
+        throw new Error('Invalid save game structure.');
       }
       activeState = validateAndMigrate(parsed);
       autosave();
       return { success: true };
-    } catch (err) {
-      return { success: false, error: err.message };
+    } catch (e) {
+      console.error('Import save failed:', e);
+      return { success: false, error: e.message };
     }
   }
 
@@ -334,8 +319,7 @@ window.StudioGame.State = (function() {
    */
   function validateAndMigrate(rawState) {
     if (!rawState) return createInitialState();
-    // Ensure all critical root keys exist
-    rawState.version = rawState.version || '0.1.0';
+    rawState.version = rawState.version || '1.0.0';
     rawState.clock = rawState.clock || { day: 1, formattedDate: '01 Jan 2026', startDate: '2026-01-01' };
     rawState.player = rawState.player || {};
     rawState.player.cash = rawState.player.cash !== undefined ? rawState.player.cash : 65000000;
@@ -353,6 +337,18 @@ window.StudioGame.State = (function() {
     rawState.studio.cash = rawState.studio.cash !== undefined ? rawState.studio.cash : 30000000;
     if (window.StudioGame.Systems.Projects) {
       window.StudioGame.Systems.Projects.ensureProjectState(rawState);
+    }
+    if (window.StudioGame.Systems.Talent) {
+      window.StudioGame.Systems.Talent.ensureTalentState(rawState);
+    }
+    if (window.StudioGame.Systems.Studios) {
+      window.StudioGame.Systems.Studios.ensureStudiosState(rawState);
+    }
+    if (window.StudioGame.Systems.Market) {
+      window.StudioGame.Systems.Market.ensureMarketState(rawState);
+    }
+    if (window.StudioGame.Systems.News) {
+      window.StudioGame.Systems.News.ensureNewsState(rawState);
     }
     rawState.feed = rawState.feed || [];
     rawState.history = rawState.history || [];

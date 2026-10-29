@@ -21,21 +21,21 @@ window.StudioGame.App = (function() {
       icon: '🎬',
       unlocked: true,
       unlockVersion: '0.3',
-      description: 'Photoshoot & Ad Film bidding contracts against rival studios, project pipeline management, and studio upgrade facilities.'
+      description: 'Photoshoot & Ad Film bidding contracts against rival studios, feature film & series production pipeline, and studio lot upgrades.'
     },
     {
       id: 'talent',
       name: 'Talent',
       icon: '🌟',
-      unlocked: false,
+      unlocked: true,
       unlockVersion: '0.4',
-      description: 'Full talent roster of 300+ actresses and actors (A-listers & newcomers), dynamic fan following, fitness, debt, and contract negotiations.'
+      description: 'Full talent roster of 300+ actresses and actors (Megastars & newcomers), dynamic fan following, fitness, debt bailouts, and contract negotiations.'
     },
     {
       id: 'studios',
       name: 'Studios',
       icon: '🏢',
-      unlocked: false,
+      unlocked: true,
       unlockVersion: '0.7',
       description: 'The 25 Indian production houses + 10 Dynamic Unicorn Studios founded by top talent. Real-time net worth tracking and box office competition.'
     },
@@ -43,7 +43,7 @@ window.StudioGame.App = (function() {
       id: 'market',
       name: 'Market',
       icon: '📈',
-      unlocked: false,
+      unlocked: true,
       unlockVersion: '0.9',
       description: 'Complex Dalal Street stock exchange, studio IPOs, technical analysis, buy/sell pressure engine with -8% to +8% circuit breakers.'
     },
@@ -51,7 +51,7 @@ window.StudioGame.App = (function() {
       id: 'news',
       name: 'News',
       icon: '📰',
-      unlocked: false,
+      unlocked: true,
       unlockVersion: '0.8',
       description: 'Trade magazines, box office rankings, media scandals in 5-star hotels, paparazzi leaks, and annual Bollywood awards season.'
     }
@@ -63,7 +63,7 @@ window.StudioGame.App = (function() {
 
     // Check for existing save
     if (window.StudioGame.State.hasSavedGame() && window.StudioGame.State.loadAutosave()) {
-      showDashboard();
+      routeScreen();
     } else {
       showStartScreen();
     }
@@ -105,7 +105,7 @@ window.StudioGame.App = (function() {
   function attachTabBarListeners() {
     const navButtons = document.querySelectorAll('.nav-tab-item');
     navButtons.forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', () => {
         const tabId = btn.getAttribute('data-tab-id');
         const tabDef = TAB_DEFINITIONS.find(t => t.id === tabId);
 
@@ -145,6 +145,14 @@ window.StudioGame.App = (function() {
       showDashboard();
     } else if (activeTab === 'actions') {
       showActions();
+    } else if (activeTab === 'talent') {
+      showTalent();
+    } else if (activeTab === 'studios') {
+      showStudios();
+    } else if (activeTab === 'market') {
+      showMarket();
+    } else if (activeTab === 'news') {
+      showNews();
     }
   }
 
@@ -167,10 +175,86 @@ window.StudioGame.App = (function() {
     }
   }
 
+  function showTalent() {
+    const viewport = document.getElementById('screenViewport');
+    const tabBar = document.getElementById('bottomTabBar');
+    if (tabBar) tabBar.style.display = 'block';
+
+    const state = window.StudioGame.State.get();
+    if (!state) return;
+
+    if (window.StudioGame.UI.TalentScreen) {
+      window.StudioGame.UI.TalentScreen.render(viewport, state, {
+        onAdvanceTurn: handleAdvanceTurn,
+        onAdvanceToEvent: handleAdvanceToEvent,
+        onStateChange: () => {
+          showTalent();
+        }
+      });
+    }
+  }
+
+  function showStudios() {
+    const viewport = document.getElementById('screenViewport');
+    const tabBar = document.getElementById('bottomTabBar');
+    if (tabBar) tabBar.style.display = 'block';
+
+    const state = window.StudioGame.State.get();
+    if (!state) return;
+
+    if (window.StudioGame.UI.StudiosScreen) {
+      window.StudioGame.UI.StudiosScreen.render(viewport, state, {
+        onAdvanceTurn: handleAdvanceTurn,
+        onAdvanceToEvent: handleAdvanceToEvent,
+        onStateChange: () => {
+          showStudios();
+        }
+      });
+    }
+  }
+
+  function showMarket() {
+    const viewport = document.getElementById('screenViewport');
+    const tabBar = document.getElementById('bottomTabBar');
+    if (tabBar) tabBar.style.display = 'block';
+
+    const state = window.StudioGame.State.get();
+    if (!state) return;
+
+    if (window.StudioGame.UI.MarketScreen) {
+      window.StudioGame.UI.MarketScreen.render(viewport, state, {
+        onAdvanceTurn: handleAdvanceTurn,
+        onAdvanceToEvent: handleAdvanceToEvent,
+        onStateChange: () => {
+          showMarket();
+        }
+      });
+    }
+  }
+
+  function showNews() {
+    const viewport = document.getElementById('screenViewport');
+    const tabBar = document.getElementById('bottomTabBar');
+    if (tabBar) tabBar.style.display = 'block';
+
+    const state = window.StudioGame.State.get();
+    if (!state) return;
+
+    if (window.StudioGame.UI.NewsScreen) {
+      window.StudioGame.UI.NewsScreen.render(viewport, state, {
+        onAdvanceTurn: handleAdvanceTurn,
+        onAdvanceToEvent: handleAdvanceToEvent,
+        onStateChange: () => {
+          showNews();
+        }
+      });
+    }
+  }
+
   function showStartScreen() {
     const viewport = document.getElementById('screenViewport');
     const tabBar = document.getElementById('bottomTabBar');
-    if (tabBar) tabBar.style.display = 'none'; // Hide bottom tabs during character creation
+    if (tabBar) tabBar.style.display = 'none';
 
     window.StudioGame.UI.StartScreen.render(viewport, (newGameParams) => {
       const newState = window.StudioGame.State.createInitialState(newGameParams);
@@ -208,9 +292,9 @@ window.StudioGame.App = (function() {
 
     const result = window.StudioGame.Systems.Clock.advanceDays(state, days);
     window.StudioGame.State.autosave();
-    showDashboard();
+    routeScreen();
 
-    // Only notify if genuine noteworthy events or milestones occurred, no routine skip toaster
+    // Only notify if genuine noteworthy events or milestones occurred
     if (result.events && result.events.length > 0) {
       result.events.forEach(evt => {
         showToast(evt.message);
@@ -224,7 +308,7 @@ window.StudioGame.App = (function() {
 
     const result = window.StudioGame.Systems.Clock.advanceToNextEvent(state);
     window.StudioGame.State.autosave();
-    showDashboard();
+    routeScreen();
     showToast(`⚡ ${result.reason} (Advanced ${result.daysAdvanced} days)`);
   }
 
@@ -251,12 +335,6 @@ window.StudioGame.App = (function() {
           <p class="locked-description">
             ${tabDef.description}
           </p>
-
-          <div class="roadmap-box">
-            <div class="roadmap-title">Current Development Milestone:</div>
-            <div class="roadmap-val highlight-emerald">v0.3 Actions & Commercial Pipeline &bull; Complete</div>
-            <div class="roadmap-next">Next Target: <strong>v0.4 Talent Roster (300+ Actors & Actresses)</strong></div>
-          </div>
         </div>
 
         <div class="modal-footer">
@@ -268,8 +346,8 @@ window.StudioGame.App = (function() {
     document.body.appendChild(backdrop);
 
     const close = () => backdrop.remove();
-    document.getElementById('btnCloseLockedModal').addEventListener('click', close);
-    document.getElementById('btnDismissLockedModal').addEventListener('click', close);
+    backdrop.querySelector('#btnCloseLockedModal').addEventListener('click', close);
+    backdrop.querySelector('#btnDismissLockedModal').addEventListener('click', close);
     backdrop.addEventListener('click', (e) => {
       if (e.target === backdrop) close();
     });
@@ -293,6 +371,11 @@ window.StudioGame.App = (function() {
   return {
     init,
     showDashboard,
+    showActions,
+    showTalent,
+    showStudios,
+    showMarket,
+    showNews,
     showStartScreen,
     showToast
   };

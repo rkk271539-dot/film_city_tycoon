@@ -30,7 +30,6 @@ window.StudioGame.Systems.Clock = (function() {
       const d = new Date(state.clock.startDate);
       d.setDate(d.getDate() + (state.clock.day - 1));
       
-      const prevMonth = state.clock.currentMonth;
       state.clock.currentYear = d.getFullYear();
       state.clock.currentMonth = d.getMonth();
       state.clock.currentDay = d.getDate();
@@ -57,7 +56,7 @@ window.StudioGame.Systems.Clock = (function() {
         });
       }
 
-      // Wife aging (offset by e.g. 120 days from start so their birthdays aren't on the exact same day)
+      // Wife aging (offset by e.g. 120 days from start)
       if ((state.clock.day + 120) % 365 === 0) {
         state.wife.age += 1;
         const msg = `💐 Happy Birthday to ${state.wife.name}! She is now ${state.wife.age} years old.`;
@@ -88,8 +87,28 @@ window.StudioGame.Systems.Clock = (function() {
         window.StudioGame.Systems.Projects.dailyTick(state);
       }
 
+      // 2d. Talent Agency, Contract countdowns & Debt tick
+      if (window.StudioGame.Systems.Talent) {
+        window.StudioGame.Systems.Talent.dailyTick(state);
+      }
+
+      // 2e. 25 Legacy Studios & 10 Dynamic Unicorns simulation tick
+      if (window.StudioGame.Systems.Studios) {
+        window.StudioGame.Systems.Studios.dailyTick(state);
+      }
+
+      // 2f. Dalal Street Stock Market & Circuit Breaker tick
+      if (window.StudioGame.Systems.Market) {
+        window.StudioGame.Systems.Market.dailyTick(state);
+      }
+
+      // 2g. Trade News, Hotel Scandals & Annual Awards Gala tick
+      if (window.StudioGame.Systems.News) {
+        window.StudioGame.Systems.News.dailyTick(state);
+      }
+
       // 3. Ambient Industry Gossip / News roll
-      if (Math.random() < 0.12 && window.StudioGame.Data.Events) {
+      if (Math.random() < 0.10 && window.StudioGame.Data.Events) {
         const rumors = window.StudioGame.Data.Events.dailyRumors;
         const rumor = rumors[Math.floor(Math.random() * rumors.length)];
         state.feed.unshift({
@@ -136,13 +155,12 @@ window.StudioGame.Systems.Clock = (function() {
 
       // Keep history bounded to avoid memory bloating in long multi-year games
       if (state.history.length > 2000) {
-        // Sample every second point on the older half
         state.history = state.history.filter((_, idx) => idx % 2 === 0 || idx > 1500);
       }
 
-      // Keep activity feed to last 100 items
-      if (state.feed.length > 100) {
-        state.feed.length = 100;
+      // Keep activity feed bounded
+      if (state.feed.length > 120) {
+        state.feed.length = 120;
       }
     }
 

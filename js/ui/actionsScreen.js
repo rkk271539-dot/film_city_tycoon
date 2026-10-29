@@ -97,27 +97,64 @@ window.StudioGame.UI.ActionsScreen = (function() {
 
         <!-- Main Content Area -->
         <main class="page-content-padding">
-          <!-- Segmented Tab Bar -->
-          <nav class="actions-subnav-tabs">
-            <button class="actions-tab-btn ${activeSubTab === 'cinema' ? 'active' : ''}" data-subtab="cinema">
-              🎬 Cinema & Web Series
-            </button>
-            <button class="actions-tab-btn ${activeSubTab === 'bids' ? 'active' : ''}" data-subtab="bids">
-              📋 Client RFPs (${state.bids.length})
-            </button>
-            <button class="actions-tab-btn ${activeSubTab === 'pipeline' ? 'active' : ''}" data-subtab="pipeline">
-              🎥 Shoots Floor (${activeProjectsCount})
-            </button>
-            <button class="actions-tab-btn ${activeSubTab === 'personal' ? 'active' : ''}" data-subtab="personal">
-              👑 Lifestyle & Personal
-            </button>
-            <button class="actions-tab-btn ${activeSubTab === 'commission' ? 'active' : ''}" data-subtab="commission">
-              📸 Commercials
-            </button>
-            <button class="actions-tab-btn ${activeSubTab === 'upgrades' ? 'active' : ''}" data-subtab="upgrades">
-              🏢 Lot Upgrades (${state.studio.upgrades.length})
-            </button>
-          </nav>
+          <!-- Card-Based Actions Hub Grid (v1.05 Overhaul) -->
+          <section class="actions-card-hub mb-3">
+            <div class="actions-hub-grid">
+              <div class="action-hub-card ${activeSubTab === 'cinema' ? 'selected' : ''}" data-subtab="cinema">
+                <div class="action-hub-icon-wrap cinema-glow">🎬</div>
+                <div class="action-hub-content">
+                  <div class="action-hub-title">Greenlight Cinema</div>
+                  <div class="action-hub-subtitle">Features, Web Series & Shorts</div>
+                  <div class="action-hub-badge">${activeProjectsCount}/${capacity} Stages Active</div>
+                </div>
+              </div>
+
+              <div class="action-hub-card ${activeSubTab === 'pipeline' ? 'selected' : ''}" data-subtab="pipeline">
+                <div class="action-hub-icon-wrap pipeline-glow">🎥</div>
+                <div class="action-hub-content">
+                  <div class="action-hub-title">Active Floor Pipeline</div>
+                  <div class="action-hub-subtitle">Running shoots & live box office</div>
+                  <div class="action-hub-badge ${activeProjectsCount > 0 ? 'badge-live' : ''}">${activeProjectsCount > 0 ? `${activeProjectsCount} Running` : 'Idle'}</div>
+                </div>
+              </div>
+
+              <div class="action-hub-card ${activeSubTab === 'archive' ? 'selected' : ''}" data-subtab="archive">
+                <div class="action-hub-icon-wrap archive-glow">📜</div>
+                <div class="action-hub-content">
+                  <div class="action-hub-title">Past Projects & Vault</div>
+                  <div class="action-hub-subtitle">Audited statements & OTT royalties</div>
+                  <div class="action-hub-badge badge-gold">${(state.studio.completedProjects || []).length} Archived</div>
+                </div>
+              </div>
+
+              <div class="action-hub-card ${activeSubTab === 'personal' ? 'selected' : ''}" data-subtab="personal">
+                <div class="action-hub-icon-wrap personal-glow">👑</div>
+                <div class="action-hub-content">
+                  <div class="action-hub-title">Lifestyle & Personal</div>
+                  <div class="action-hub-subtitle">Penthouses, Maybachs, Galas & Wife</div>
+                  <div class="action-hub-badge">Prestige Clout</div>
+                </div>
+              </div>
+
+              <div class="action-hub-card ${activeSubTab === 'bids' ? 'selected' : ''}" data-subtab="bids">
+                <div class="action-hub-icon-wrap bids-glow">📋</div>
+                <div class="action-hub-content">
+                  <div class="action-hub-title">Client RFP Bids</div>
+                  <div class="action-hub-subtitle">Brand ads & competitive shoots</div>
+                  <div class="action-hub-badge">${state.bids.length} Open Briefs</div>
+                </div>
+              </div>
+
+              <div class="action-hub-card ${activeSubTab === 'upgrades' ? 'selected' : ''}" data-subtab="upgrades">
+                <div class="action-hub-icon-wrap upgrades-glow">🏢</div>
+                <div class="action-hub-content">
+                  <div class="action-hub-title">Studio Lot Upgrades</div>
+                  <div class="action-hub-subtitle">Sound stages, 4K rigs & suites</div>
+                  <div class="action-hub-badge">${state.studio.upgrades.length} Active</div>
+                </div>
+              </div>
+            </div>
+          </section>
 
           <!-- Main Tab Body -->
           <div class="actions-body mt-3">
@@ -132,12 +169,344 @@ window.StudioGame.UI.ActionsScreen = (function() {
 
   function renderSubTabContent(state, tab, callbacks) {
     if (tab === 'cinema') return renderCinemaProductionTab(state, callbacks);
-    if (tab === 'bids') return renderBidsTab(state);
     if (tab === 'pipeline') return renderPipelineTab(state);
+    if (tab === 'archive') return renderPastProjectsTab(state, callbacks);
     if (tab === 'personal') return renderPersonalActionsTab(state);
+    if (tab === 'bids') return renderBidsTab(state);
     if (tab === 'commission') return renderCommissionTab(state);
     if (tab === 'upgrades') return renderUpgradesTab(state);
     return '';
+  }
+
+    /**
+   * Render Past Projects & Studio Vault Tab (Section 3.6 & v1.05 Requirement)
+   */
+  function renderPastProjectsTab(state, callbacks) {
+    const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
+    const completed = state.studio.completedProjects || [];
+
+    const totalProjects = completed.length;
+    let totalGrossRevenue = 0;
+    let totalNetProfit = 0;
+    let blockbusterCount = 0;
+    let streamingRoyaltiesTotal = 0;
+
+    completed.forEach(p => {
+      const gross = (p.theatricalDistributorShare || Math.round((p.theatricalGrossTotal || 0) * 0.50)) + (p.ottLicense || 0) + (p.cumulativePassiveEarnings || 0) + (p.agreedPayout || 0);
+      totalGrossRevenue += gross;
+      totalNetProfit += (p.profitEarned || 0);
+      streamingRoyaltiesTotal += (p.cumulativePassiveEarnings || 0);
+      if (['All-Time Blockbuster', 'Blockbuster', 'Super Hit'].includes(p.verdict)) {
+        blockbusterCount += 1;
+      }
+    });
+
+    if (totalProjects === 0) {
+      return `
+        <div class="empty-state-box card p-5 text-center">
+          <div class="empty-icon" style="font-size: 3rem;">📜</div>
+          <h3 class="text-xl font-bold mt-2">Studio Film Vault is Currently Empty</h3>
+          <p class="text-muted max-w-md mx-auto mt-1">
+            Greenlight your first cinematic feature film, produce a web series, or deliver commercial client RFPs. Every completed project will be permanently archived here with itemized financial audits, spent vs earned statements, and streaming royalty trackers!
+          </p>
+          <button class="btn btn-primary mt-3" id="btnGoToCinema">🎬 Greenlight Cinema Production</button>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="past-projects-vault-layout">
+        <!-- Vault Financial Summary Banner -->
+        <div class="talent-summary-grid mb-3">
+          <div class="summary-mini-card">
+            <span class="mini-label">Completed Productions</span>
+            <span class="mini-val highlight-gold">${totalProjects}</span>
+            <span class="mini-sub">Permanent Film Vault</span>
+          </div>
+          <div class="summary-mini-card">
+            <span class="mini-label">Total Studio Inflow</span>
+            <span class="mini-val highlight-emerald font-mono">${formatRupees(totalGrossRevenue)}</span>
+            <span class="mini-sub">Theatrical, OTT & YouTube</span>
+          </div>
+          <div class="summary-mini-card">
+            <span class="mini-label">Net Profit Generated</span>
+            <span class="mini-val ${totalNetProfit >= 0 ? 'highlight-emerald' : 'highlight-rose'} font-mono">${formatRupees(totalNetProfit, { forcePlus: true })}</span>
+            <span class="mini-sub">Studio Bottom Line</span>
+          </div>
+          <div class="summary-mini-card">
+            <span class="mini-label">Super Hits & Blockbusters</span>
+            <span class="mini-val highlight-cyan">${blockbusterCount} Hits</span>
+            <span class="mini-sub">${streamingRoyaltiesTotal > 0 ? `${formatRupees(streamingRoyaltiesTotal)} Streaming Royalties` : 'Box Office Champions'}</span>
+          </div>
+        </div>
+
+        <!-- Projects Archive Grid -->
+        <div class="past-projects-grid">
+          ${completed.map((p, idx) => {
+            const isWebSeries = p.formatId === 'web_series';
+            const isCinema = !!p.theatricalWeeks && p.theatricalWeeks > 0;
+            const roiPercent = Math.round(((p.profitEarned || 0) / (p.upfrontInvested || 1)) * 100);
+            const totalInflow = (p.theatricalDistributorShare || Math.round((p.theatricalGrossTotal || 0) * 0.50)) + (p.ottLicense || 0) + (p.cumulativePassiveEarnings || 0) + (p.agreedPayout || 0);
+
+            return `
+              <div class="past-project-card card p-3" data-project-index="${idx}">
+                <div class="card-header-between mb-2">
+                  <div class="proj-badge-wrap">
+                    <span class="badge ${isWebSeries ? 'badge-purple' : (isCinema ? 'badge-gold' : 'badge-blue')}">
+                      ${p.genreIcon || '🎬'} ${p.format || 'Cinema Production'}
+                    </span>
+                    <span class="badge badge-emerald font-bold">${p.verdict || 'Commercial Success'}</span>
+                  </div>
+                  <span class="text-xs text-muted font-mono">${p.deliveredDate || 'Archived'}</span>
+                </div>
+
+                <div class="proj-main-info mb-2">
+                  <h3 class="proj-title-text text-lg font-bold">${escapeHtml(p.name || p.title)}</h3>
+                  <div class="proj-stars-strip text-xs text-muted mt-1">
+                    ${p.leadActorName ? `<span>👨 <strong>${escapeHtml(p.leadActorName)}</strong></span>` : ''}
+                    ${p.leadActressName ? `<span class="ml-2">👩 <strong>${escapeHtml(p.leadActressName)}</strong></span>` : ''}
+                    ${p.clientName && !p.leadActorName ? `<span>💼 Client: <strong>${escapeHtml(p.clientName)}</strong></span>` : ''}
+                  </div>
+                </div>
+
+                <!-- Financial Mini Statement -->
+                <div class="proj-finance-summary-box p-2 mb-2">
+                  <div class="finance-row">
+                    <span class="text-muted text-xs">Total Invested / Spent:</span>
+                    <span class="font-mono text-xs highlight-rose font-bold">${formatRupees(p.upfrontInvested || 0)}</span>
+                  </div>
+                  <div class="finance-row">
+                    <span class="text-muted text-xs">Total Inflows (Theatrical + OTT):</span>
+                    <span class="font-mono text-xs highlight-cyan font-bold">${formatRupees(totalInflow)}</span>
+                  </div>
+                  <div class="finance-row divider-top pt-1 mt-1">
+                    <span class="text-xs font-bold">Net Profit / ROI:</span>
+                    <span class="font-mono text-xs ${p.profitEarned >= 0 ? 'highlight-emerald' : 'highlight-rose'} font-bold">
+                      ${formatRupees(p.profitEarned || 0, { forcePlus: true })} (${roiPercent >= 0 ? '+' : ''}${roiPercent}%)
+                    </span>
+                  </div>
+                </div>
+
+                ${isWebSeries && p.isStreamingCatalog ? `
+                  <div class="streaming-catalog-ticker p-2 mb-2">
+                    <div class="text-xs text-muted">📺 Active Streaming Catalog (${p.streamingPlatform || 'NetPrime & YouTube'})</div>
+                    <div class="text-xs font-mono highlight-gold">
+                      Cumulative Royalties: <strong>${formatRupees(p.cumulativePassiveEarnings || 0)}</strong>
+                      ${p.royaltyDaysRemaining > 0 ? ` &bull; ⏳ ${p.royaltyDaysRemaining}D left` : ''}
+                    </div>
+                  </div>
+                ` : ''}
+
+                <div class="card-footer-action mt-2">
+                  <button class="btn btn-sm btn-outline-gold btn-full btn-view-audit" data-project-index="${idx}">
+                    📊 Audited Financial Statement & Star Impact
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Open Detailed Financial Audit & Star Impact Modal
+   */
+  function openProjectFinancialAuditModal(proj, state) {
+    const existing = document.getElementById('projectAuditModal');
+    if (existing) existing.remove();
+
+    const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
+    const formatFans = window.StudioGame.Systems.Talent.formatFans;
+
+    const actor = (state.talent || []).find(t => t.id === proj.leadActorId) || proj.leadActorInfo;
+    const actress = (state.talent || []).find(t => t.id === proj.leadActressId) || proj.leadActressInfo;
+
+    const actorAvatar = actor ? window.StudioGame.Face.generate({ gender: 'male', seed: actor.avatarSeed || actor.name }) : '';
+    const actressAvatar = actress ? window.StudioGame.Face.generate({ gender: 'female', seed: actress.avatarSeed || actress.name }) : '';
+
+    const invested = proj.upfrontInvested || 1;
+    const netProfit = proj.profitEarned || 0;
+    const roi = Math.round((netProfit / invested) * 100);
+
+    const costActor = proj.costBreakdown?.actorFee || Math.round(invested * 0.15);
+    const costActress = proj.costBreakdown?.actressFee || Math.round(invested * 0.15);
+    const costProduction = proj.costBreakdown?.baseProduction || Math.round(invested * 0.35);
+    const costOptics = proj.costBreakdown?.cameraAndOptics || Math.round(invested * 0.15);
+    const costMarketing = proj.costBreakdown?.marketingBlitz || Math.round(invested * 0.15);
+    const costPost = proj.costBreakdown?.postAndVfx || Math.round(invested * 0.05);
+
+    const grossTheatrical = proj.theatricalGrossTotal || 0;
+    const shareDistributor = proj.theatricalDistributorShare || Math.round(grossTheatrical * 0.50);
+    const revOtt = proj.ottLicense || 0;
+    const revPassive = proj.cumulativePassiveEarnings || 0;
+    const revCommercial = proj.agreedPayout || 0;
+    const totalInflow = shareDistributor + revOtt + revPassive + revCommercial;
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.id = 'projectAuditModal';
+
+    backdrop.innerHTML = `
+      <div class="modal-card modal-lg slide-up">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span class="badge badge-gold font-mono">${proj.genreIcon || '🎬'} ${proj.format || 'Feature Production'}</span>
+            <h2 class="modal-title">${escapeHtml(proj.name || proj.title)}</h2>
+          </div>
+          <button class="btn-icon-close" id="btnCloseAuditModal" aria-label="Close">&times;</button>
+        </div>
+
+        <div class="modal-body audit-modal-body">
+          <!-- Verdict Laurel Strip -->
+          <div class="audit-verdict-banner text-center p-3 mb-3">
+            <span class="laurel-icon">🏆</span>
+            <div class="verdict-laurel-title">${proj.verdict || 'Commercial Success'}</div>
+            <div class="text-xs text-muted">Official Indian Motion Picture Trade Association Certification &bull; Wrapped ${proj.deliveredDate || 'In Season'}</div>
+          </div>
+
+          <!-- Talents Used & Dynamic Career Impact -->
+          <div class="card p-3 mb-3">
+            <h4 class="text-sm font-bold mb-2">⭐ Star Cast & Career Impact</h4>
+            <div class="audit-cast-grid">
+              ${actor ? `
+                <div class="audit-cast-card">
+                  <img src="${actorAvatar}" class="avatar-small-round" alt="${escapeHtml(actor.name)}" />
+                  <div class="cast-meta">
+                    <div class="font-bold text-sm">${escapeHtml(actor.name)}</div>
+                    <div class="text-xs text-muted">Leading Actor &bull; ${formatFans(actor.fans)}</div>
+                    <div class="text-xs highlight-emerald mt-1">+15 Loyalty &bull; +1.2M Fans &bull; +4 Rep</div>
+                  </div>
+                </div>
+              ` : ''}
+
+              ${actress ? `
+                <div class="audit-cast-card">
+                  <img src="${actressAvatar}" class="avatar-small-round" alt="${escapeHtml(actress.name)}" />
+                  <div class="cast-meta">
+                    <div class="font-bold text-sm">${escapeHtml(actress.name)}</div>
+                    <div class="text-xs text-muted">Leading Actress &bull; ${formatFans(actress.fans)}</div>
+                    <div class="text-xs highlight-emerald mt-1">+15 Loyalty &bull; +1.2M Fans &bull; +4 Rep</div>
+                  </div>
+                </div>
+              ` : ''}
+
+              ${!actor && !actress ? `
+                <div class="text-xs text-muted">Studio Commissioned Commercial Production (Client: ${escapeHtml(proj.clientName || 'Private Brand')})</div>
+              ` : ''}
+            </div>
+          </div>
+
+          <!-- Itemized Financial Statement (Spent vs Earned) -->
+          <div class="card p-3 mb-3">
+            <h4 class="text-sm font-bold mb-2">📊 Audited Financial Statement & Profit Ledger</h4>
+            
+            <div class="audit-statement-table">
+              <!-- Outflows -->
+              <div class="statement-group-header highlight-rose">1. Capital Outflows (Production & Talent Expenditure)</div>
+              <div class="statement-row">
+                <span>Lead Actor Talent Quote:</span>
+                <span class="font-mono">${formatRupees(costActor)}</span>
+              </div>
+              <div class="statement-row">
+                <span>Lead Actress Talent Quote:</span>
+                <span class="font-mono">${formatRupees(costActress)}</span>
+              </div>
+              <div class="statement-row">
+                <span>Sound Stages & Set Construction:</span>
+                <span class="font-mono">${formatRupees(costProduction)}</span>
+              </div>
+              <div class="statement-row">
+                <span>4K Optics, Lighting Rigging & Technical Crew:</span>
+                <span class="font-mono">${formatRupees(costOptics)}</span>
+              </div>
+              <div class="statement-row">
+                <span>Pan-India Marketing Blitz, Hoardings & Trailers:</span>
+                <span class="font-mono">${formatRupees(costMarketing)}</span>
+              </div>
+              <div class="statement-row">
+                <span>Censor Board Fees, Color Grading & Sound Master:</span>
+                <span class="font-mono">${formatRupees(costPost)}</span>
+              </div>
+              <div class="statement-row total-row divider-top">
+                <span class="font-bold">Total Capital Invested / Spent:</span>
+                <span class="font-mono font-bold highlight-rose">${formatRupees(invested)}</span>
+              </div>
+
+              <!-- Inflows -->
+              <div class="statement-group-header highlight-cyan mt-3">2. Gross Revenue Inflows (Theatrical, OTT & Syndication)</div>
+              ${grossTheatrical > 0 ? `
+                <div class="statement-row">
+                  <span>Gross Theatrical Ticket Collections:</span>
+                  <span class="font-mono">${formatRupees(grossTheatrical)}</span>
+                </div>
+                <div class="statement-row">
+                  <span>Studio Net Distributor Share (50%):</span>
+                  <span class="font-mono highlight-gold">${formatRupees(shareDistributor)}</span>
+                </div>
+              ` : ''}
+              ${revOtt > 0 ? `
+                <div class="statement-row">
+                  <span>Exclusive OTT Digital Streaming Rights (NetPrime):</span>
+                  <span class="font-mono highlight-cyan">${formatRupees(revOtt)}</span>
+                </div>
+              ` : ''}
+              ${revPassive > 0 ? `
+                <div class="statement-row">
+                  <span>YouTube AdSense & Streaming Royalties (Catalog):</span>
+                  <span class="font-mono highlight-emerald">${formatRupees(revPassive)}</span>
+                </div>
+              ` : ''}
+              ${revCommercial > 0 ? `
+                <div class="statement-row">
+                  <span>Commercial RFP Commission Payout:</span>
+                  <span class="font-mono highlight-cyan">${formatRupees(revCommercial)}</span>
+                </div>
+              ` : ''}
+              <div class="statement-row total-row divider-top">
+                <span class="font-bold">Total Studio Revenue Realized:</span>
+                <span class="font-mono font-bold highlight-cyan">${formatRupees(totalInflow)}</span>
+              </div>
+
+              <!-- Net Bottom Line -->
+              <div class="statement-bottom-line p-3 mt-3 ${netProfit >= 0 ? 'bg-emerald-subtle' : 'bg-rose-subtle'}">
+                <div class="bottom-line-title">NET STUDIO FINANCIAL RETURN</div>
+                <div class="bottom-line-val font-mono text-xl font-bold ${netProfit >= 0 ? 'highlight-emerald' : 'highlight-rose'}">
+                  ${formatRupees(netProfit, { forcePlus: true })} (${roi >= 0 ? '+' : ''}${roi}% ROI)
+                </div>
+                <div class="text-xs text-muted mt-1">
+                  ${netProfit >= 0 ? 'Commercial triumph delivering massive capital inflows to studio reserves.' : 'Production overrun resulting in studio net operating loss.'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          ${proj.formatId === 'web_series' && proj.isStreamingCatalog ? `
+            <div class="card p-3 mb-2">
+              <div class="card-header-between">
+                <span class="text-sm font-bold">📺 Ongoing Web Series Royalties</span>
+                <span class="badge badge-emerald">Active Contract</span>
+              </div>
+              <p class="text-xs text-muted mt-1">
+                This web series is licensed to <strong>NetPrime & YouTube</strong>. It continues to generate ongoing daily ad-share and subscriber streams!
+              </p>
+              <div class="font-mono text-xs highlight-gold mt-1">
+                Current Daily Royalty: <strong>${formatRupees(proj.dailyRoyalty || 0)} / day</strong> &bull; Total Accumulated to Date: <strong>${formatRupees(proj.cumulativePassiveEarnings || 0)}</strong>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary btn-full" id="btnCloseAuditModalBottom">Close Audit Statement</button>
+        </div>
+      </div>
+    `;
+
+    backdrop.querySelector('#btnCloseAuditModal')?.addEventListener('click', () => backdrop.remove());
+    backdrop.querySelector('#btnCloseAuditModalBottom')?.addEventListener('click', () => backdrop.remove());
+    document.body.appendChild(backdrop);
   }
 
   function renderCinemaProductionTab(state, callbacks) {
@@ -727,11 +1096,33 @@ window.StudioGame.UI.ActionsScreen = (function() {
     });
 
     // Subtab switching
+    container.querySelectorAll('.action-hub-card').forEach(card => {
+      card.addEventListener('click', () => {
+        activeSubTab = card.getAttribute('data-subtab');
+        render(container, state, callbacks);
+      });
+    });
+
     container.querySelectorAll('.actions-tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         activeSubTab = btn.getAttribute('data-subtab');
         render(container, state, callbacks);
       });
+    });
+
+    container.querySelectorAll('.btn-view-audit').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const idx = parseInt(e.currentTarget.getAttribute('data-project-index'), 10);
+        const proj = (state.studio.completedProjects || [])[idx];
+        if (proj) {
+          openProjectFinancialAuditModal(proj, state);
+        }
+      });
+    });
+
+    container.querySelector('#btnGoToCinema')?.addEventListener('click', () => {
+      activeSubTab = 'cinema';
+      render(container, state, callbacks);
     });
 
     // Format choice cards

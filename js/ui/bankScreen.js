@@ -119,20 +119,46 @@ window.StudioGame.UI.BankScreen = (function() {
             </div>
           </div>
 
-          <!-- Bank Navigation Sub-Tabs -->
-          <div class="bank-nav-tabs-wrapper">
-            <div class="studios-nav-tabs">
-              <button class="studios-tab-btn ${activeSubTab === 'loans' ? 'active' : ''}" data-bank-tab="loans">
-                💳 Apply For Loan
-              </button>
-              <button class="studios-tab-btn ${activeSubTab === 'active' ? 'active' : ''}" data-bank-tab="active">
-                📋 Active Debt (${activeLoans.length})
-              </button>
-              <button class="studios-tab-btn ${activeSubTab === 'fd' ? 'active' : ''}" data-bank-tab="fd">
-                🏦 Fixed Deposits & Treasury (${fixedDeposits.length})
-              </button>
+          <!-- Card-Based Treasury Hub (v1.05 Overhaul) -->
+          <section class="bank-card-hub mb-3">
+            <div class="actions-hub-grid">
+              <div class="action-hub-card ${activeSubTab === 'loans' && selectedLoanType === 'term' ? 'selected' : ''}" data-bank-action="term">
+                <div class="action-hub-icon-wrap cinema-glow">💰</div>
+                <div class="action-hub-content">
+                  <div class="action-hub-title">Commercial Term Loan</div>
+                  <div class="action-hub-subtitle">Low 9.0% p.a. &bull; Up to 45% Net Worth</div>
+                  <div class="action-hub-badge">Low Interest</div>
+                </div>
+              </div>
+
+              <div class="action-hub-card ${activeSubTab === 'loans' && selectedLoanType === 'mezzanine' ? 'selected' : ''}" data-bank-action="mezzanine">
+                <div class="action-hub-icon-wrap personal-glow">⚡</div>
+                <div class="action-hub-content">
+                  <div class="action-hub-title">Mezzanine Bridge Credit</div>
+                  <div class="action-hub-subtitle">Fast emergency credit up to ₹5 Cr</div>
+                  <div class="action-hub-badge badge-gold">Instant Approval</div>
+                </div>
+              </div>
+
+              <div class="action-hub-card ${activeSubTab === 'active' ? 'selected' : ''}" data-bank-action="active">
+                <div class="action-hub-icon-wrap pipeline-glow">📋</div>
+                <div class="action-hub-content">
+                  <div class="action-hub-title">Active Loans & Repayment</div>
+                  <div class="action-hub-subtitle">Monthly EMIs & 1-click payoff in full</div>
+                  <div class="action-hub-badge ${activeLoans.length > 0 ? 'badge-live' : ''}">${activeLoans.length} Active Loans</div>
+                </div>
+              </div>
+
+              <div class="action-hub-card ${activeSubTab === 'fd' ? 'selected' : ''}" data-bank-action="fd">
+                <div class="action-hub-icon-wrap upgrades-glow">🏦</div>
+                <div class="action-hub-content">
+                  <div class="action-hub-title">High-Yield Fixed Deposits</div>
+                  <div class="action-hub-subtitle">7.5% Annual APY &bull; Daily compounding</div>
+                  <div class="action-hub-badge badge-gold">${fixedDeposits.length} Active FDs</div>
+                </div>
+              </div>
             </div>
-          </div>
+          </section>
 
           <!-- Sub-Tab Views -->
           ${activeSubTab === 'loans' ? renderLoanApplication(state, curMaxBorrow, annualRate, estEMI, estTotalInterest) : ''}
@@ -397,6 +423,24 @@ window.StudioGame.UI.BankScreen = (function() {
     });
 
     // Sub tabs
+    container.querySelectorAll('[data-bank-action]').forEach(card => {
+      card.addEventListener('click', () => {
+        const action = card.getAttribute('data-bank-action');
+        if (action === 'term') {
+          activeSubTab = 'loans';
+          selectedLoanType = 'term';
+        } else if (action === 'mezzanine') {
+          activeSubTab = 'loans';
+          selectedLoanType = 'mezzanine';
+        } else if (action === 'active') {
+          activeSubTab = 'active';
+        } else if (action === 'fd') {
+          activeSubTab = 'fd';
+        }
+        render(container, state, callbacks);
+      });
+    });
+
     container.querySelectorAll('[data-bank-tab]').forEach(btn => {
       btn.addEventListener('click', () => {
         activeSubTab = btn.getAttribute('data-bank-tab');

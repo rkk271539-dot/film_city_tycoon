@@ -7,24 +7,32 @@ A deep, multi-turn studio management simulation where you and your partner build
 ## 🌟 What's Included & Implemented
 
 ### 🌟 New in v1.05 Fixes & Expansion
-- **Flexible 1–6 Month Contracts & Project Casting Requirement**:
-  - Sign talent on flexible **1 to 6-month contracts** with dynamic quote scaling (0.35x to 1.60x).
-  - Feature cinema productions strictly enforce casting from **active, signed studio talent**. Quick 1-6 month contract signing modal accessible directly from the casting picker.
-  - Dedicated **📜 Our Signed Stars** view with live contract countdown timers (`⏳ X Days Left`), loyalty indicators, and instant 3-month contract extensions.
-- **Imperial Reserve Bank & Corporate Treasury (Dedicated Bank Tab)**:
-  - **Commercial Term Loans**: Borrow up to 45% studio net worth at 9.0% p.a. with flexible 6–24 month tenures and automatic monthly EMI amortization.
-  - **Mezzanine Bridge Credit**: Rapid liquidity up to ₹5 Crores at 14.5% p.a.
-  - **7.5% APY Fixed Deposits**: Park liquid reserves into interest-bearing FDs with daily compounding and anytime premature liquidation.
-  - **Dynamic Credit Rating Engine**: Ranks from `AAA (Prime Sovereign)` to `Junk / Distressed` based on debt-to-equity ratios.
+- **Card-Based Visual Hub Navigation (Actions & Bank)**:
+  - Upgraded both Actions and Bank screens with modern **Interactive Cards Grid Hubs** replacing legacy sub-tabs.
+  - Actions Hub: *🎬 Greenlight Cinema*, *🎥 Active Production Pipeline*, *📜 Past Projects Vault*, *👑 Lifestyle & Personal Assets*, *📋 Client RFP Bids*, and *🏢 Studio Lot Upgrades*.
+  - Bank Treasury Hub: *💰 Commercial Term Loans*, *⚡ Mezzanine Bridge Credit*, *📋 Active Debt & Amortization*, and *🏦 High-Yield Fixed Deposits*.
+- **Past Projects Vault & Detailed Financial Statement Audits**:
+  - Permanent archival of all completed productions in the studio vault.
+  - Full-screen **Audited Financial Statement Modal**: Itemized outflows (Talent quotes, set construction, 4K camera optics, marketing blitz, censor board & post), inflows (Theatrical gross & 50% distributor share, OTT NetPrime licensing, YouTube royalties), and net profit ROI ledger.
+- **Web Series Long-Tail Recurring Streaming Royalties (OTT & YouTube)**:
+  - Web series don't just stop at premiere: they enter the **Active Streaming Catalog** generating recurring daily streaming royalties and YouTube AdSense revenue for 180 days with organic decay.
+- **Talent Debt Notes on Balance Sheet & Secondary Debt Trading Market**:
+  - Studio doesn't just forgive debt: you **acquire distressed debt notes** from creditors for emerging starlets, commercial models, and rising talents.
+  - Stars are indebted to your studio, unlocking 98+ loyalty and a permanent 45% production discount.
+  - **Secondary Debt Market**: As your star ascends, rival studios (Dharma, YRF, Excel) submit lucrative **Debt Buyout Offers** (2x to 4x of original debt)! You can accept buyout offers for massive capital gains, reject to retain exclusivity, or forgive for a 5-year contract lock.
+- **Talent Investments & Development Actions**:
+  - 8 rich interactive actions: *Celebrity Fitness & Nutrition Bootcamp (+15 Fitness)*, *Commercial Brand Ad Blitz (+₹13L net studio profit, +350K Fans)*, *National Drama School Masterclass (+12 Acting)*, *Haute Couture Glamour Makeover (+15 Glamour)*, *National Viral PR Media Blitz (+1.5M-2.5M Fans)*, *Soho House VIP Power Lunch*, *Luxury Cartier/Rolex Timepieces*, and *Tabloid Paparazzi Hush Money*.
+- **Cast Fan Factor & Box Office Frenzy**:
+  - Combined fan counts of lead actors directly drive Day 1 opening weekend crowd frenzy (up to 2.35x multiplier) and premium OTT licensing windfalls.
+- **Flexible 1–6 Month Contracts & Project Casting Enforcement**:
+  - Flexible **1 to 6-month contract proposals** with dynamic quote scaling (0.35x to 1.60x).
+  - Feature cinema productions enforce active signed studio stars with embedded quick-signing drawers.
+- **Imperial Reserve Bank & Corporate Treasury**:
+  - Term loans (up to 45% net worth @ 9% p.a.), Mezzanine credit (14.5% p.a.), 7.5% APY FDs, and dynamic AAA to Junk credit rating.
 - **Rival Studio Star Poaching & Overhauled Studio Inside Screen**:
-  - Completely redesigned **Studio Dossier Modal** with 4 interactive tabs: *⭐ Contracted Stars*, *🏛️ Financials & IP*, *🎟️ Theatrical Runs*, and *🤝 Co-Production*.
-  - **`⚡ Poach Star` Engine**: Steal exclusive stars from legacy studios and unicorns by paying 1.5x buyout compensation + upfront bonus, triggering attitude drops and trade headlines.
-- **Talent Interpersonal Actions & Relations**:
-  - Deepen relations with individual artistes through *Soho House Power Lunches*, *Luxury Cartier/Rolex Gifts*, *Veteran Mentorship Masterclasses*, *PR Image Makeovers*, and *Tabloid Scandal Hush Money*.
-- **Lifestyle & Personal Actions**:
-  - Rich personal spending outside studio ops: *Bandra Bandstand Penthouse*, *Juhu Beach Bungalow*, *Alibaug Waterfront Villa*, *Mercedes-Maybach S-Class*, *Rolls-Royce Phantom*, *Lamborghini Urus*, *Page 3 High-Society Galas*, *OTT Streamer Power Dinners*, *European Vacations with Wife*, and *Harry Winston Diamond Solitaires*.
-- **Diverse Dynamic Trade News with Real Gameplay Impacts**:
-  - Income Tax raids fining rival studios, Cannes standing ovations boosting net worth, Dalal Street circuit halts, and streaming platform bidding wars.
+  - 4-tab studio dossier with live `⚡ Poach Star` buyout mechanism.
+- **Lifestyle & Personal Empire**:
+  - Luxury Bandra/Juhu real estate, Maybach/Rolls-Royce supercars, Page 3 galas, OTT dinners, and vacations with wife.
 
 ---
 

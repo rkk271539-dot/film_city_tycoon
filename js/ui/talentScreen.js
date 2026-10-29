@@ -152,7 +152,7 @@ window.StudioGame.UI.TalentScreen = (function() {
             </div>
           </div>
 
-          <!-- Roster View Mode Tabs -->
+          <!-- Roster View Mode Tabs (v1.05 Expansion) -->
           <div class="talent-view-tabs my-2">
             <button class="studios-tab-btn ${activeViewMode === 'roster' ? 'active' : ''}" data-view-mode="roster">
               🌐 Artiste Directory (${talents.length})
@@ -160,8 +160,12 @@ window.StudioGame.UI.TalentScreen = (function() {
             <button class="studios-tab-btn ${activeViewMode === 'signed' ? 'active' : ''}" data-view-mode="signed">
               📜 Our Signed Stars (${signedCount})
             </button>
+            <button class="studios-tab-btn ${activeViewMode === 'debts' ? 'active' : ''}" data-view-mode="debts">
+              📑 Debt Notes & Secondary Trading (${talents.filter(t => t.debtHeldBy === 'player_studio').length} Held &bull; ${talents.filter(t => !!t.rivalDebtBuyoutOffer).length} Offers)
+            </button>
           </div>
 
+          ${activeViewMode === 'debts' ? renderDebtsTradingView(state, callbacks) : `
           <!-- Filter & Search Toolbar -->
           <div class="talent-toolbar-card">
             <div class="toolbar-search-row">
@@ -249,11 +253,179 @@ window.StudioGame.UI.TalentScreen = (function() {
               <button class="pagination-btn" id="btnNextPage" ${currentPage === totalPages ? 'disabled' : ''}>Next &rarr;</button>
             </div>
           ` : ''}
+          `}
         </main>
       </div>
     `;
 
     attachEventListeners(container, state, callbacks);
+  }
+
+    /**
+   * Render Secondary Debt Market & Distressed Notes Trading Tab
+   */
+  function renderDebtsTradingView(state, callbacks) {
+    const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
+    const formatFans = window.StudioGame.Systems.Talent.formatFans;
+    const talents = state.talent || [];
+
+    const heldDebts = talents.filter(t => t.debtHeldBy === 'player_studio');
+    const rivalOffers = heldDebts.filter(t => !!t.rivalDebtBuyoutOffer);
+    const marketDebts = talents.filter(t => t.debt > 0 && t.debtHeldBy !== 'player_studio' && (t.netWorth < 50000000 || !t.isMegastar));
+
+    const totalHeldPrincipal = heldDebts.reduce((sum, t) => sum + (t.debtOriginalAmount || t.debt || 0), 0);
+
+    return `
+      <div class="debt-market-container">
+        <!-- Summary Stats Banner -->
+        <div class="talent-summary-grid mb-3">
+          <div class="summary-mini-card">
+            <span class="mini-label">Debt Notes Held</span>
+            <span class="mini-val highlight-emerald font-bold">${heldDebts.length} Artistes</span>
+            <span class="mini-sub">Studio Balance Sheet Asset</span>
+          </div>
+          <div class="summary-mini-card">
+            <span class="mini-label">Total Debt Principal</span>
+            <span class="mini-val highlight-gold font-mono">${formatRupees(totalHeldPrincipal)}</span>
+            <span class="mini-sub">Face Value Portfolio</span>
+          </div>
+          <div class="summary-mini-card">
+            <span class="mini-label">Active Buyout Offers</span>
+            <span class="mini-val highlight-amber font-bold">${rivalOffers.length} Incoming</span>
+            <span class="mini-sub">From Rival Studios</span>
+          </div>
+          <div class="summary-mini-card">
+            <span class="mini-label">Distressed Notes on Market</span>
+            <span class="mini-val highlight-cyan">${marketDebts.length} Available</span>
+            <span class="mini-sub">Smaller & Rising Talents</span>
+          </div>
+        </div>
+
+        <!-- Section 1: Active Debt Notes Held on Studio Balance Sheet -->
+        <div class="card p-3 mb-4">
+          <div class="card-header-between mb-2">
+            <div>
+              <h3 class="text-base font-bold">📑 Distressed Debt Notes Held on Studio Balance Sheet (${heldDebts.length})</h3>
+              <p class="text-xs text-muted">You purchased these debts from creditors. Artistes owe you complete loyalty and 45% production discounts. Rival studios will submit buyout offers to poach them!</p>
+            </div>
+          </div>
+
+          ${heldDebts.length === 0 ? `
+            <div class="p-4 text-center text-muted">
+              <span style="font-size: 2rem;">📜</span>
+              <p class="mt-1">You currently hold no talent debt notes. Browse distressed market notes below to acquire star debt notes.</p>
+            </div>
+          ` : `
+            <div class="debt-held-grid">
+              ${heldDebts.map(t => {
+                const orig = t.debtOriginalAmount || t.debt || 1000000;
+                const offer = t.rivalDebtBuyoutOffer;
+                const profit = offer ? offer.offerAmount - orig : 0;
+                const avatar = window.StudioGame.Face.generate({ gender: t.gender, seed: t.avatarSeed || t.name });
+
+                return `
+                  <div class="debt-note-card card p-3 ${offer ? 'border-gold' : ''}">
+                    <div class="debt-card-top flex items-center justify-between">
+                      <div class="flex items-center">
+                        <img src="${avatar}" class="avatar-small-round mr-2" alt="${escapeHtml(t.name)}" />
+                        <div>
+                          <div class="font-bold text-sm">${escapeHtml(t.name)}</div>
+                          <div class="text-xs text-muted">${t.category} &bull; ${formatFans(t.fans)} &bull; ${t.loyalty}% Loyalty</div>
+                        </div>
+                      </div>
+                      <span class="badge badge-emerald font-mono">Face Value: ${formatRupees(orig)}</span>
+                    </div>
+
+                    <div class="debt-card-terms p-2 my-2 bg-dark-subtle rounded text-xs">
+                      <div>✨ <strong>Perk:</strong> 45% permanent quote discount & 95+ loyalty lock.</div>
+                      <div>⏳ <strong>Contract:</strong> ${t.contractDaysRemaining} days remaining with your studio.</div>
+                    </div>
+
+                    ${offer ? `
+                      <div class="debt-buyout-offer-box p-3 mb-2 rounded bg-gold-subtle border-amber">
+                        <div class="flex items-center justify-between mb-1">
+                          <span class="badge badge-gold font-bold">⚡ INCOMING BUYOUT OFFER</span>
+                          <span class="text-xs text-muted font-mono">Expires in ${offer.expiresDay - state.clock.day} days</span>
+                        </div>
+                        <div class="text-xs">
+                          <strong>${escapeHtml(offer.rivalStudioName)}</strong> is offering to purchase this debt note for:
+                        </div>
+                        <div class="font-mono text-lg font-bold highlight-gold my-1">
+                          ${formatRupees(offer.offerAmount)}
+                        </div>
+                        <div class="text-xs highlight-emerald font-bold mb-2">
+                          Your Studio Capital Profit: +${formatRupees(profit)}
+                        </div>
+                        <div class="flex gap-2">
+                          <button class="btn btn-sm btn-emerald btn-full btn-accept-debt-buyout" data-talent-id="${t.id}">
+                            Accept Buyout (Pocket Cash)
+                          </button>
+                          <button class="btn btn-sm btn-outline-danger btn-full btn-reject-debt-buyout" data-talent-id="${t.id}">
+                            Reject Offer
+                          </button>
+                        </div>
+                      </div>
+                    ` : `
+                      <div class="text-xs text-muted italic mb-2">No active rival buyout offers at this time. Trade interest grows as star popularity increases.</div>
+                    `}
+
+                    <div class="debt-card-actions mt-2 flex gap-2">
+                      <button class="btn btn-sm btn-outline-gold btn-full btn-forgive-debt" data-talent-id="${t.id}">
+                        🌟 Forgive Debt (5-Year Lock)
+                      </button>
+                      <button class="btn btn-sm btn-primary btn-full btn-view-dossier" data-talent-id="${t.id}">
+                        Dossier
+                      </button>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `}
+        </div>
+
+        <!-- Section 2: Distressed Debt Notes on Market (Acquisition Targets) -->
+        <div class="card p-3">
+          <div class="card-header-between mb-2">
+            <div>
+              <h3 class="text-base font-bold">🎯 Distressed Notes on Market &bull; Emerging Stars in Debt (${marketDebts.length})</h3>
+              <p class="text-xs text-muted">These rising artistes carry distressed personal debt burdens. Purchase their debt note to hold on your balance sheet, secure exclusive 45% production discounts, and resell at high premiums when their demand peaks!</p>
+            </div>
+          </div>
+
+          <div class="debt-market-grid">
+            ${marketDebts.map(t => {
+              const avatar = window.StudioGame.Face.generate({ gender: t.gender, seed: t.avatarSeed || t.name });
+              return `
+                <div class="market-debt-card card p-3">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center">
+                      <img src="${avatar}" class="avatar-small-round mr-2" alt="${escapeHtml(t.name)}" />
+                      <div>
+                        <div class="font-bold text-sm">${escapeHtml(t.name)}</div>
+                        <div class="text-xs text-muted">${t.category} &bull; ${formatFans(t.fans)}</div>
+                      </div>
+                    </div>
+                    <span class="badge badge-rose font-mono font-bold">${formatRupees(t.debt)}</span>
+                  </div>
+
+                  <p class="text-xs text-muted mb-2">${escapeHtml(t.bio || 'Promising talent with strong upside.')}</p>
+
+                  <div class="flex items-center justify-between mt-2 pt-2 divider-top">
+                    <div class="text-xs">
+                      <span class="text-muted">Net Worth:</span> <strong class="font-mono">${formatRupees(t.netWorth)}</strong>
+                    </div>
+                    <button class="btn btn-sm btn-emerald btn-purchase-debt" data-talent-id="${t.id}" ${state.studio.cash < t.debt ? 'disabled' : ''}>
+                      ${state.studio.cash >= t.debt ? `Acquire Debt Note (${formatRupees(t.debt)})` : 'Insufficient Funds'}
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   function renderTalentCard(t, state) {
@@ -296,7 +468,8 @@ window.StudioGame.UI.TalentScreen = (function() {
             <div class="talent-badges-row">
               <span class="badge ${getCategoryBadgeClass(t.category)}">${t.category}</span>
               <span class="badge ${imageBadgeClass}">${imageBadgeText}</span>
-              ${hasDebt ? `<span class="badge badge-amber font-mono">💸 Debt: ${window.StudioGame.Systems.Finance.formatRupees(t.debt)}</span>` : ''}
+              ${t.debtHeldBy === 'player_studio' ? `<span class="badge badge-emerald font-mono font-bold">📑 Debt Held by Us (${window.StudioGame.Systems.Finance.formatRupees(t.debt)})</span>` : (hasDebt ? `<span class="badge badge-amber font-mono">💸 Debt: ${window.StudioGame.Systems.Finance.formatRupees(t.debt)}</span>` : '')}
+              ${t.rivalDebtBuyoutOffer ? `<span class="badge badge-gold animate-pulse">⚡ Buyout Offer: ${window.StudioGame.Systems.Finance.formatRupees(t.rivalDebtBuyoutOffer.offerAmount)}</span>` : ''}
               ${isSignedToUs ? `<span class="badge badge-emerald">⭐ Signed (${t.contractDaysRemaining}D Left)</span>` : ''}
               ${isSignedToRival ? `<span class="badge badge-indigo">🔒 Locked (${t.contractWith})</span>` : ''}
             </div>
@@ -343,9 +516,14 @@ window.StudioGame.UI.TalentScreen = (function() {
             <span class="fee-val highlight-gold font-mono">${window.StudioGame.Systems.Finance.formatRupees(t.averageFee)}</span>
           </div>
 
-          <button class="btn btn-sm ${isSignedToUs ? 'btn-emerald' : 'btn-primary'} btn-view-dossier" data-talent-id="${t.id}">
-            ${isSignedToUs ? 'Manage Contract' : 'Dossier & Sign'}
-          </button>
+          <div class="talent-card-btn-group">
+            <button class="btn btn-sm btn-outline-gold btn-open-actions mr-1" data-talent-id="${t.id}" title="Artiste Development & Actions">
+              ⚡ Actions & Invest
+            </button>
+            <button class="btn btn-sm ${isSignedToUs ? 'btn-emerald' : 'btn-primary'} btn-view-dossier" data-talent-id="${t.id}">
+              ${isSignedToUs ? 'Manage' : 'Dossier & Sign'}
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -464,6 +642,72 @@ window.StudioGame.UI.TalentScreen = (function() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
+    // Open Actions directly
+    container.querySelectorAll('.btn-open-actions').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const talentId = el.getAttribute('data-talent-id');
+        openTalentDossierModal(talentId, state, callbacks);
+      });
+    });
+
+    // Debt Market Actions in Debts View
+    container.querySelectorAll('.btn-purchase-debt').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const talentId = el.getAttribute('data-talent-id');
+        const res = window.StudioGame.Systems.Talent.purchaseTalentDebt(state, talentId);
+        if (res.success) {
+          window.StudioGame.App.showToast(`📑 Acquired ${res.talentName}'s debt note (${window.StudioGame.Systems.Finance.formatRupees(res.debtAmount)})! Star is now bound to studio.`);
+          window.StudioGame.State.autosave();
+          callbacks.onStateChange?.();
+          render(container, state, callbacks);
+        } else {
+          window.StudioGame.App.showToast(`⚠️ ${res.error}`);
+        }
+      });
+    });
+
+    container.querySelectorAll('.btn-accept-debt-buyout').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const talentId = el.getAttribute('data-talent-id');
+        const res = window.StudioGame.Systems.Talent.acceptRivalDebtBuyout(state, talentId);
+        if (res.success) {
+          window.StudioGame.App.showToast(`💰 Sold debt note to ${res.rivalStudioName} for ${window.StudioGame.Systems.Finance.formatRupees(res.offerAmount)} (+${window.StudioGame.Systems.Finance.formatRupees(res.profit)} profit)!`);
+          window.StudioGame.State.autosave();
+          callbacks.onStateChange?.();
+          render(container, state, callbacks);
+        } else {
+          window.StudioGame.App.showToast(`⚠️ ${res.error}`);
+        }
+      });
+    });
+
+    container.querySelectorAll('.btn-reject-debt-buyout').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const talentId = el.getAttribute('data-talent-id');
+        window.StudioGame.Systems.Talent.rejectRivalDebtBuyout(state, talentId);
+        window.StudioGame.App.showToast(`🛡️ Buyout offer rejected. Star retained.`);
+        window.StudioGame.State.autosave();
+        callbacks.onStateChange?.();
+        render(container, state, callbacks);
+      });
+    });
+
+    container.querySelectorAll('.btn-forgive-debt').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const talentId = el.getAttribute('data-talent-id');
+        window.StudioGame.Systems.Talent.forgiveDebtForRetention(state, talentId);
+        window.StudioGame.App.showToast(`🌟 Debt forgiven! Star signed exclusive 5-year retention contract.`);
+        window.StudioGame.State.autosave();
+        callbacks.onStateChange?.();
+        render(container, state, callbacks);
+      });
+    });
+
     // Open Dossier Modal
     container.querySelectorAll('.btn-view-dossier, .talent-roster-card').forEach(el => {
       el.addEventListener('click', (e) => {
@@ -571,61 +815,130 @@ window.StudioGame.UI.TalentScreen = (function() {
             </div>
           </div>
 
-          <!-- Section: Interpersonal Actions & Relations -->
+          <!-- Section: Artiste Development & Investment Actions (v1.05 Expansion) -->
           <div class="dossier-section-box">
-            <h4 class="section-box-title">🤝 Interpersonal Relations & Clout Actions</h4>
+            <h4 class="section-box-title">⚡ Artiste Investments, Development & Clout Actions</h4>
             <div class="lifestyle-actions-grid">
+              <!-- 1. Fitness Bootcamp -->
+              <div class="lifestyle-action-card">
+                <span class="act-icon">🏋️</span>
+                <div class="act-meta">
+                  <strong>Celebrity Fitness & Nutrition Bootcamp</strong>
+                  <span>Hire top trainers (+15 Fitness, +5 Glamour, prevents delays).</span>
+                  <span class="act-cost highlight-gold font-mono">₹8.0 Lakh</span>
+                </div>
+                <button class="btn btn-sm btn-outline-gold btn-talent-action" data-action="fitness_bootcamp">Enroll Bootcamp</button>
+              </div>
+
+              <!-- 2. Brand Ad Blitz -->
+              <div class="lifestyle-action-card">
+                <span class="act-icon">📸</span>
+                <div class="act-meta">
+                  <strong>Commercial Brand Endorsement Blitz</strong>
+                  <span>Pitch for brand ads (+₹13L net studio profit, +350K Fans).</span>
+                  <span class="act-cost highlight-emerald font-mono">Pays ₹28.0L (₹15L Cost)</span>
+                </div>
+                <button class="btn btn-sm btn-emerald btn-talent-action" data-action="brand_ad_blitz">Pitch Endorsement</button>
+              </div>
+
+              <!-- 3. Method Acting Masterclass -->
+              <div class="lifestyle-action-card">
+                <span class="act-icon">🎭</span>
+                <div class="act-meta">
+                  <strong>National Drama School Masterclass</strong>
+                  <span>Intensive acting titans training (+12 Acting, +3 Reputation).</span>
+                  <span class="act-cost highlight-gold font-mono">₹10.0 Lakh</span>
+                </div>
+                <button class="btn btn-sm btn-outline-gold btn-talent-action" data-action="acting_masterclass">Sponsor Coach</button>
+              </div>
+
+              <!-- 4. Haute Couture Glamour Makeover -->
+              <div class="lifestyle-action-card">
+                <span class="act-icon">✨</span>
+                <div class="act-meta">
+                  <strong>Haute Couture Glamour Makeover</strong>
+                  <span>Redesign wardrobe & styling (+15 Glamour, +500K Fans).</span>
+                  <span class="act-cost highlight-gold font-mono">₹12.0 Lakh</span>
+                </div>
+                <button class="btn btn-sm btn-outline-gold btn-talent-action" data-action="glamour_makeover">Stylist Revamp</button>
+              </div>
+
+              <!-- 5. Viral PR Media Push -->
+              <div class="lifestyle-action-card">
+                <span class="act-icon">📣</span>
+                <div class="act-meta">
+                  <strong>National Viral PR & Paparazzi Blitz</strong>
+                  <span>Explosive digital media campaign (+1.5M to 2.5M Fans, +8 Rep).</span>
+                  <span class="act-cost highlight-gold font-mono">₹18.0 Lakh</span>
+                </div>
+                <button class="btn btn-sm btn-outline-gold btn-talent-action" data-action="viral_pr_push">Launch PR Wave</button>
+              </div>
+
+              <!-- 6. Soho House Power Lunch -->
               <div class="lifestyle-action-card">
                 <span class="act-icon">☕</span>
                 <div class="act-meta">
                   <strong>Private Power Lunch at Soho House</strong>
-                  <span>Boosts loyalty & mutual friendship (+12 Rel).</span>
-                  <span class="act-cost highlight-gold font-mono">₹50,000</span>
+                  <span>Personal founder rapport (+16 Relationship, +15 Loyalty).</span>
+                  <span class="act-cost highlight-gold font-mono">₹1.5 Lakh (Personal)</span>
                 </div>
-                <button class="btn btn-sm btn-outline-gold btn-talent-action" data-action="lunch">Host Lunch</button>
+                <button class="btn btn-sm btn-outline-gold btn-talent-action" data-action="vip_power_lunch">Host Lunch</button>
               </div>
 
+              <!-- 7. Luxury Cartier / Rolex Gift -->
               <div class="lifestyle-action-card">
                 <span class="act-icon">🎁</span>
                 <div class="act-meta">
-                  <strong>Luxury Designer Timepiece & Hamper</strong>
-                  <span>Bespoke Cartier / Rolex gift (+20 Rel, +18 Loyalty).</span>
-                  <span class="act-cost highlight-gold font-mono">₹3.0 Lakh</span>
+                  <strong>Luxury Cartier / Rolex Timepiece Gift</strong>
+                  <span>Bespoke high-end gesture (+25 Relationship, +25 Loyalty).</span>
+                  <span class="act-cost highlight-gold font-mono">₹10.0 Lakh (Personal)</span>
                 </div>
-                <button class="btn btn-sm btn-outline-gold btn-talent-action" data-action="gift">Send Gift</button>
+                <button class="btn btn-sm btn-outline-gold btn-talent-action" data-action="luxury_gift">Send Watch</button>
               </div>
 
+              <!-- 8. Paparazzi Hush Money -->
               <div class="lifestyle-action-card">
-                <span class="act-icon">🎭</span>
+                <span class="act-icon">🤫</span>
                 <div class="act-meta">
-                  <strong>Method Acting Masterclass</strong>
-                  <span>Professional coach sponsorship (+2 Acting, +2 Glamour).</span>
-                  <span class="act-cost highlight-gold font-mono">₹5.0 Lakh</span>
+                  <strong>Tabloid Paparazzi Hush Money</strong>
+                  <span>Suppress controversial leaks (+15 Rep, safeguards image).</span>
+                  <span class="act-cost highlight-gold font-mono">₹25.0 Lakh</span>
                 </div>
-                <button class="btn btn-sm btn-outline-gold btn-talent-action" data-action="mentorship">Enroll</button>
+                <button class="btn btn-sm btn-outline-gold btn-talent-action" data-action="hush_money">Silence Media</button>
               </div>
 
-              <div class="lifestyle-action-card">
-                <span class="act-icon">✨</span>
-                <div class="act-meta">
-                  <strong>PR Image Makeover Campaign</strong>
-                  <span>Transform screen persona & gain 10% new fan surge.</span>
-                  <span class="act-cost highlight-gold font-mono">₹10.0 Lakh</span>
+              <!-- Debt Holding / Acquisition Section -->
+              ${talent.debtHeldBy === 'player_studio' ? `
+                <div class="lifestyle-action-card is-debt-card border-emerald" style="grid-column: 1 / -1;">
+                  <span class="act-icon">📑</span>
+                  <div class="act-meta">
+                    <strong>Distressed Debt Note Held on Studio Balance Sheet</strong>
+                    <span>You hold ${talent.name}'s ${formatRupees(talent.debtOriginalAmount || talent.debt)} debt note. Artiste is bound to your studio with an active 45% production quote discount!</span>
+                    ${talent.rivalDebtBuyoutOffer ? `
+                      <div class="debt-buyout-banner p-2 my-1 rounded bg-gold-subtle">
+                        ⚡ <strong>Rival Buyout Offer from ${talent.rivalDebtBuyoutOffer.rivalStudioName}:</strong>
+                        <span class="highlight-gold font-mono font-bold">${formatRupees(talent.rivalDebtBuyoutOffer.offerAmount)}</span>
+                        (Capital Profit: +${formatRupees(talent.rivalDebtBuyoutOffer.offerAmount - (talent.debtOriginalAmount || talent.debt))})
+                        <div class="mt-1 flex gap-2">
+                          <button class="btn btn-sm btn-emerald" id="btnAcceptDossierBuyout">Accept Buyout (Pocket Cash)</button>
+                          <button class="btn btn-sm btn-outline-danger" id="btnRejectDossierBuyout">Reject Offer</button>
+                        </div>
+                      </div>
+                    ` : '<div class="text-xs text-muted mt-1">Rival studios will submit buyout offers as star popularity grows.</div>'}
+                  </div>
+                  <button class="btn btn-sm btn-outline-gold" id="btnForgiveDebtRetention">🌟 Forgive Debt (Lock 5-Year Contract)</button>
                 </div>
-                <button class="btn btn-sm btn-outline-gold btn-talent-action" data-action="makeover">Revamp Image</button>
-              </div>
-
-              ${talent.debt > 0 ? `
-                <div class="lifestyle-action-card is-debt-card">
+              ` : (talent.debt > 0 ? `
+                <div class="lifestyle-action-card is-debt-card" style="grid-column: 1 / -1;">
                   <span class="act-icon">💸</span>
                   <div class="act-meta">
-                    <strong>Bailout Outstanding Debt</strong>
-                    <span>Pay off ${formatRupees(talent.debt)} for profound loyalty and 35% fee discount.</span>
-                    <span class="act-cost highlight-rose font-mono">${formatRupees(talent.debt)}</span>
+                    <strong>Distressed Debt Note (${formatRupees(talent.debt)}) Held by Creditors</strong>
+                    <span>Acquire this debt note to your balance sheet. Bind ${talent.name} exclusively to your studio with 45% quote discount. Resell to rival studios at high multiples!</span>
+                    <span class="act-cost highlight-rose font-mono">Acquisition Cost: ${formatRupees(talent.debt)}</span>
                   </div>
-                  <button class="btn btn-sm btn-emerald" id="btnBailoutDebt">Bailout Debt</button>
+                  <button class="btn btn-sm btn-emerald" id="btnPurchaseDebtNote">Acquire Debt Note</button>
                 </div>
-              ` : ''}
+              ` : '')}
             </div>
           </div>
 
@@ -761,17 +1074,48 @@ window.StudioGame.UI.TalentScreen = (function() {
     });
 
     // Bailout debt
-    backdrop.querySelector('#btnBailoutDebt')?.addEventListener('click', () => {
-      const res = window.StudioGame.Systems.Talent.bailoutDebt(state, talent.id);
+    backdrop.querySelector('#btnPurchaseDebtNote')?.addEventListener('click', () => {
+      const res = window.StudioGame.Systems.Talent.purchaseTalentDebt(state, talent.id);
       if (res.success) {
+        window.StudioGame.App.showToast(`📑 Acquired ${talent.name}'s debt note (${formatRupees(res.debtAmount)})! Star is now bound to studio.`);
         window.StudioGame.State.autosave();
         callbacks.onStateChange?.();
-        window.StudioGame.App.showToast(`🤝 Succeeded in bailing out ${talent.name}! Loyalty is soaring.`);
         close();
         openTalentDossierModal(talent.id, state, callbacks);
       } else {
         window.StudioGame.App.showToast(`⚠️ ${res.error}`);
       }
+    });
+
+    backdrop.querySelector('#btnAcceptDossierBuyout')?.addEventListener('click', () => {
+      const res = window.StudioGame.Systems.Talent.acceptRivalDebtBuyout(state, talent.id);
+      if (res.success) {
+        window.StudioGame.App.showToast(`💰 Sold debt note to ${res.rivalStudioName} for ${formatRupees(res.offerAmount)} (+${formatRupees(res.profit)} profit)!`);
+        window.StudioGame.State.autosave();
+        callbacks.onStateChange?.();
+        close();
+        render(container, state, callbacks);
+      } else {
+        window.StudioGame.App.showToast(`⚠️ ${res.error}`);
+      }
+    });
+
+    backdrop.querySelector('#btnRejectDossierBuyout')?.addEventListener('click', () => {
+      window.StudioGame.Systems.Talent.rejectRivalDebtBuyout(state, talent.id);
+      window.StudioGame.App.showToast(`🛡️ Buyout offer rejected. Star retained.`);
+      window.StudioGame.State.autosave();
+      callbacks.onStateChange?.();
+      close();
+      openTalentDossierModal(talent.id, state, callbacks);
+    });
+
+    backdrop.querySelector('#btnForgiveDebtRetention')?.addEventListener('click', () => {
+      window.StudioGame.Systems.Talent.forgiveDebtForRetention(state, talent.id);
+      window.StudioGame.App.showToast(`🌟 Debt forgiven! Star signed exclusive 5-year retention contract.`);
+      window.StudioGame.State.autosave();
+      callbacks.onStateChange?.();
+      close();
+      openTalentDossierModal(talent.id, state, callbacks);
     });
 
     // Release contract

@@ -317,6 +317,16 @@ window.StudioGame.Systems.Projects = (function() {
       leadActressName: leadActress ? leadActress.name : 'Unknown Star',
       leadActorId: leadActor?.id,
       leadActressId: leadActress?.id,
+      leadActorInfo: leadActor ? { id: leadActor.id, name: leadActor.name, fans: leadActor.fans, avatar: leadActor.avatar || leadActor.avatarSvg, pureImage: leadActor.pureImage, tier: leadActor.tier } : null,
+      leadActressInfo: leadActress ? { id: leadActress.id, name: leadActress.name, fans: leadActress.fans, avatar: leadActress.avatar || leadActress.avatarSvg, pureImage: leadActress.pureImage, tier: leadActress.tier } : null,
+      costBreakdown: {
+        actorFee: actorFee,
+        actressFee: actressFee,
+        baseProduction: Math.round(formatDef.baseCost * 0.45),
+        cameraAndOptics: Math.round(formatDef.baseCost * 0.20),
+        marketingBlitz: Math.round(formatDef.baseCost * 0.20),
+        postAndVfx: Math.round(formatDef.baseCost * 0.15)
+      },
       stage: 'Phase 1: Script & Packaging',
       inTheatres: false
     };
@@ -470,24 +480,34 @@ window.StudioGame.Systems.Projects = (function() {
         } else if (progressRatio < 1.0) {
           proj.stage = 'Phase 4: Pan-India Marketing Blitz & Trailer';
         } else {
-          // ENTER THEATRICAL RELEASE!
+          // ENTER THEATRICAL RELEASE / STREAMING PREMIERE!
           proj.inTheatres = true;
           proj.theatricalWeekCurrent = 1;
           proj.theatricalDayCount = 0;
-          proj.stage = 'Phase 5: In Theatres & Multiplexes';
+          proj.stage = proj.formatId === 'web_series' ? 'Phase 5: Streaming Drop on NetPrime & YouTube' : 'Phase 5: In Theatres & Multiplexes';
 
-          const openingWeekend = Math.round(proj.upfrontInvested * (0.65 + Math.random() * 0.70));
+          const leadActor = (state.talent || []).find(t => t.id === proj.leadActorId);
+          const leadActress = (state.talent || []).find(t => t.id === proj.leadActressId);
+          const combinedFans = (leadActor?.fans || 250000) + (leadActress?.fans || 250000);
+          
+          // Fan Multiplier: low fans = 0.85x, 40M+ fans = up to 2.35x
+          const fanMultiplier = Math.max(0.85, Math.min(2.35, 0.85 + (combinedFans / 40000000)));
+          proj.combinedFans = combinedFans;
+          proj.fanMultiplier = fanMultiplier;
+
+          const openingWeekend = Math.round(proj.upfrontInvested * (0.65 + Math.random() * 0.65) * fanMultiplier);
           proj.theatricalGrossWeek = openingWeekend;
           proj.theatricalGrossTotal = openingWeekend;
 
+          const fanNote = combinedFans >= 10000000 ? ` Powered by massive ${window.StudioGame.Systems.Talent.formatFanCount(combinedFans)} fan base frenzy!` : '';
           state.feed.unshift({
             id: 'evt_theatre_open_' + Date.now(),
             day: state.clock.day,
             date: state.clock.formattedDate,
-            category: 'Box Office Premiere',
-            title: `Pan-India Release: ${proj.name}!`,
-            body: `"${proj.name}" debuted across 3,800 screens nationwide! Sensational opening weekend collected ${window.StudioGame.Systems.Finance.formatRupees(openingWeekend)}.`,
-            icon: '🎟️'
+            category: proj.formatId === 'web_series' ? 'Streaming Premiere' : 'Box Office Premiere',
+            title: proj.formatId === 'web_series' ? `OTT Premiere: ${proj.name} Drops!` : `Pan-India Release: ${proj.name}!`,
+            body: `"${proj.name}" debuted across ${proj.formatId === 'web_series' ? 'NetPrime & YouTube streaming' : '3,800 screens nationwide'}! Sensational opening weekend collected ${window.StudioGame.Systems.Finance.formatRupees(openingWeekend)}.${fanNote}`,
+            icon: proj.formatId === 'web_series' ? '📺' : '🎟️'
           });
         }
       } else {
@@ -510,6 +530,19 @@ window.StudioGame.Systems.Projects = (function() {
       const completedProj = state.studio.projects.splice(completedIndices[i], 1)[0];
       wrapCommercialShoot(state, completedProj);
     }
+
+    // Handle ongoing streaming royalties for catalog web series & short films
+    (state.studio.completedProjects || []).forEach(cp => {
+      if (cp.isStreamingCatalog && cp.royaltyDaysRemaining > 0) {
+        cp.royaltyDaysRemaining -= 1;
+        const dailyInflow = Math.round(cp.dailyRoyalty * (0.92 + Math.random() * 0.16));
+        state.studio.cash += dailyInflow;
+        cp.cumulativePassiveEarnings = (cp.cumulativePassiveEarnings || 0) + dailyInflow;
+        cp.profitEarned = (cp.profitEarned || 0) + dailyInflow;
+        // Slow natural decay over time
+        cp.dailyRoyalty = Math.max(1200, Math.round(cp.dailyRoyalty * 0.997));
+      }
+    });
 
     // Refresh RFP bids pool
     if (state.clock.day % 14 === 0 || state.bids.length === 0) {
@@ -573,17 +606,37 @@ window.StudioGame.Systems.Projects = (function() {
     else if (roi >= 0.7) verdict = 'Average';
     else verdict = 'Flop';
 
-    const ottWindfall = Math.round(proj.theatricalGrossTotal * 0.40);
+    // OTT Windfall influenced by Fans and Star Power
+    const combinedFans = proj.combinedFans || 1000000;
+    const fanOttBonus = Math.round(Math.min(50000000, combinedFans * 0.05));
+    const ottWindfall = Math.round(proj.theatricalGrossTotal * 0.40) + fanOttBonus;
     state.studio.cash += ottWindfall;
     state.studio.reputation = Math.min(100, state.studio.reputation + (roi >= 1.5 ? 6 : 2));
 
     proj.deliveredDate = state.clock.formattedDate;
     proj.verdict = verdict;
     proj.ottLicense = ottWindfall;
-    proj.profitEarned = (proj.theatricalGrossTotal * 0.50 + ottWindfall) - proj.upfrontInvested;
+    proj.theatricalDistributorShare = Math.round(proj.theatricalGrossTotal * 0.50);
+    proj.profitEarned = (proj.theatricalDistributorShare + ottWindfall) - proj.upfrontInvested;
+
+    // Web Series & Short Film long-tail streaming royalties initialization
+    if (proj.formatId === 'web_series') {
+      proj.isStreamingCatalog = true;
+      proj.streamingPlatform = 'NetPrime & YouTube Official';
+      proj.dailyRoyalty = Math.round((proj.theatricalGrossTotal * 0.0025) + (combinedFans * 0.0003) + 35000);
+      proj.royaltyDaysRemaining = 180; // 6 months recurring long-tail
+      proj.cumulativePassiveEarnings = 0;
+    } else if (proj.formatId === 'short_film') {
+      proj.isStreamingCatalog = true;
+      proj.streamingPlatform = 'YouTube Festival Channel';
+      proj.dailyRoyalty = Math.round(8000 + Math.random() * 12000);
+      proj.royaltyDaysRemaining = 90; // 3 months recurring
+      proj.cumulativePassiveEarnings = 0;
+    }
 
     state.studio.completedProjects.unshift(proj);
 
+    // Dynamic Star Relations & Morale changes
     [proj.leadActorId, proj.leadActressId].forEach(talentId => {
       if (!talentId) return;
       const t = (state.talent || []).find(star => star.id === talentId);
@@ -596,18 +649,24 @@ window.StudioGame.Systems.Projects = (function() {
         });
         if (roi >= 1.3) {
           t.fans = Math.round(t.fans * 1.15);
-          t.reputation = Math.min(100, t.reputation + 3);
+          t.reputation = Math.min(100, t.reputation + 4);
+          t.loyalty = Math.min(100, (t.loyalty || 60) + 15);
+          t.relationship = Math.min(100, (t.relationship || 50) + 15);
+        } else if (roi < 0.7) {
+          t.loyalty = Math.max(20, (t.loyalty || 60) - 8);
+          t.relationship = Math.max(20, (t.relationship || 50) - 8);
         }
       }
     });
 
+    const streamingNote = proj.isStreamingCatalog ? ` Ongoing daily OTT/YouTube royalties active for next ${proj.royaltyDaysRemaining} days!` : '';
     state.feed.unshift({
       id: 'evt_film_verdict_' + Date.now(),
       day: state.clock.day,
       date: state.clock.formattedDate,
       category: 'Trade Box Office',
-      title: `Box Office Verdict: ${proj.name} is a ${verdict}!`,
-      body: `Final box office gross reached ${window.StudioGame.Systems.Finance.formatRupees(proj.theatricalGrossTotal)}. Streaming rights licensed to NetPrime for ${window.StudioGame.Systems.Finance.formatRupees(ottWindfall)}.`,
+      title: `Trade Verdict: ${proj.name} is a ${verdict}!`,
+      body: `Final box office gross reached ${window.StudioGame.Systems.Finance.formatRupees(proj.theatricalGrossTotal)}. Streaming rights licensed to NetPrime for ${window.StudioGame.Systems.Finance.formatRupees(ottWindfall)}.${streamingNote}`,
       icon: '🏆'
     });
   }

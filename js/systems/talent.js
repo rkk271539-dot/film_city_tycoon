@@ -116,6 +116,40 @@ window.StudioGame.Systems.Talent = (function() {
         talent.fitness = Math.max(40, Math.min(100, talent.fitness + delta));
       }
 
+      // 2b. Secondary Debt Market Buyout Offers from Rival Studios
+      if (talent.debtHeldBy === 'player_studio') {
+        if (talent.rivalDebtBuyoutOffer) {
+          if (state.clock.day >= talent.rivalDebtBuyoutOffer.expiresDay) {
+            talent.rivalDebtBuyoutOffer = null;
+          }
+        } else if (Math.random() < 0.06) {
+          const rivalStudios = ['Dharma Productions', 'Yash Raj Films', 'Excel Entertainment', 'Maddock Films', 'Red Chillies Entertainment', 'T-Series Films', 'Hombale Films'];
+          const rivalName = rivalStudios[Math.floor(Math.random() * rivalStudios.length)];
+          const origDebt = talent.debtOriginalAmount || talent.debt || 2500000;
+          const fanBoostRatio = Math.min(2.5, (talent.fans || 500000) / 10000000);
+          const demandMultiplier = 1.6 + fanBoostRatio + (Math.random() * 1.4);
+          const offerAmount = Math.round(origDebt * demandMultiplier);
+
+          talent.rivalDebtBuyoutOffer = {
+            rivalStudioName: rivalName,
+            offerAmount: offerAmount,
+            originalDebt: origDebt,
+            createdDay: state.clock.day,
+            expiresDay: state.clock.day + 14
+          };
+
+          state.feed.unshift({
+            id: 'evt_debt_offer_' + Date.now(),
+            day: state.clock.day,
+            date: state.clock.formattedDate,
+            category: 'Trade Finance',
+            title: `💼 Debt Buyout Offer: ${talent.name}`,
+            body: `${rivalName} submitted a ${window.StudioGame.Systems.Finance.formatRupees(offerAmount)} buyout offer to acquire ${talent.name}'s debt note from your studio (Original: ${window.StudioGame.Systems.Finance.formatRupees(origDebt)}).`,
+            icon: '📜'
+          });
+        }
+      }
+
       // 3. Ambient star news or rumors
       if (talent.debt > 0 && Math.random() < 0.005) {
         state.feed.unshift({
@@ -388,65 +422,120 @@ window.StudioGame.Systems.Talent = (function() {
     const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
 
     switch (actionType) {
-      case 'lunch': {
-        const cost = 50000;
-        if (state.player.cash < cost) return { success: false, error: `Requires ${formatRupees(cost)} personal cash.` };
-        state.player.cash -= cost;
-        talent.relationship = Math.min(100, (talent.relationship || 40) + 12);
-        talent.loyalty = Math.min(100, talent.loyalty + 8);
-        return {
-          success: true,
-          message: `Shared a private power lunch at Soho House with ${talent.name}. Relationship & loyalty blossomed (+12 Relationship).`
-        };
-      }
-
-      case 'gift': {
-        const cost = 300000;
-        if (state.player.cash < cost) return { success: false, error: `Requires ${formatRupees(cost)} personal cash.` };
-        state.player.cash -= cost;
-        talent.relationship = Math.min(100, (talent.relationship || 40) + 20);
-        talent.loyalty = Math.min(100, talent.loyalty + 18);
-        return {
-          success: true,
-          message: `Gifted ${talent.name} a luxury designer timepiece and bespoke hamper. They expressed profound warmth (+20 Relationship).`
-        };
-      }
-
-      case 'mentorship': {
-        const cost = 500000;
+      // 1. Fitness & Nutrition Bootcamp
+      case 'fitness_bootcamp': {
+        const cost = 800000;
         if (state.studio.cash < cost) return { success: false, error: `Requires ${formatRupees(cost)} studio capital.` };
         state.studio.cash -= cost;
-        talent.acting = Math.min(100, talent.acting + 2);
-        talent.glamour = Math.min(100, talent.glamour + 2);
-        talent.loyalty = Math.min(100, talent.loyalty + 10);
+        talent.fitness = Math.min(100, talent.fitness + 15);
+        talent.glamour = Math.min(100, talent.glamour + 5);
+        talent.loyalty = Math.min(100, (talent.loyalty || 60) + 10);
         return {
           success: true,
-          message: `Enrolled ${talent.name} in an exclusive method acting and international styling masterclass. (+2 Acting, +2 Glamour).`
+          message: `Enrolled ${talent.name} in an intensive celebrity fitness & nutrition bootcamp (+15 Fitness, +5 Glamour).`
         };
       }
 
-      case 'makeover': {
-        const cost = 1000000;
-        const targetImage = params.targetImage || 'romantic';
-        if (state.studio.cash < cost) return { success: false, error: `Requires ${formatRupees(cost)} studio capital.` };
-        state.studio.cash -= cost;
-        const oldImage = talent.pureImage;
-        talent.pureImage = targetImage;
-        talent.fans = Math.round(talent.fans * 1.1); // 10% fan surge from media buzz
-        return {
-          success: true,
-          message: `Orchestrated an intensive PR & image revamp for ${talent.name}. Screen persona transformed from ${oldImage} to ${targetImage} with 10% fan growth!`
-        };
-      }
-
-      case 'hush_money': {
+      // 2. Commercial Brand Ad Blitz
+      case 'brand_ad_blitz': {
         const cost = 1500000;
         if (state.studio.cash < cost) return { success: false, error: `Requires ${formatRupees(cost)} studio capital.` };
         state.studio.cash -= cost;
-        talent.loyalty = Math.min(100, talent.loyalty + 25);
+        const payout = 2800000; // +13L net profit
+        state.studio.cash += payout;
+        talent.fans = Math.round(talent.fans + 350000);
+        talent.reputation = Math.min(100, talent.reputation + 3);
+        talent.loyalty = Math.min(100, (talent.loyalty || 60) + 8);
         return {
           success: true,
-          message: `Deployed crisis PR publicists and silenced tabloid leaks regarding ${talent.name}. Reputation safeguarded.`
+          message: `Pitched ${talent.name} for high-profile luxury brand endorsements. Earned ${formatRupees(payout)} commercial revenue (+${formatRupees(payout - cost)} net profit) and +350K Fans!`
+        };
+      }
+
+      // 3. Method Acting Masterclass
+      case 'acting_masterclass':
+      case 'mentorship': {
+        const cost = 1000000;
+        if (state.studio.cash < cost) return { success: false, error: `Requires ${formatRupees(cost)} studio capital.` };
+        state.studio.cash -= cost;
+        talent.acting = Math.min(100, talent.acting + 12);
+        talent.reputation = Math.min(100, talent.reputation + 3);
+        talent.loyalty = Math.min(100, (talent.loyalty || 60) + 10);
+        return {
+          success: true,
+          message: `Enrolled ${talent.name} in an intensive National School of Drama acting masterclass (+12 Acting Prowess, +3 Reputation).`
+        };
+      }
+
+      // 4. Haute Couture Glamour Makeover
+      case 'glamour_makeover':
+      case 'makeover': {
+        const cost = 1200000;
+        if (state.studio.cash < cost) return { success: false, error: `Requires ${formatRupees(cost)} studio capital.` };
+        state.studio.cash -= cost;
+        talent.glamour = Math.min(100, talent.glamour + 15);
+        talent.fans = Math.round(talent.fans + 500000);
+        if (params.targetImage) {
+          talent.pureImage = params.targetImage;
+        }
+        return {
+          success: true,
+          message: `Redesigned ${talent.name}'s public wardrobe and red carpet glamour styling (+15 Glamour, +500K Fans).`
+        };
+      }
+
+      // 5. National Viral PR & Paparazzi Blitz
+      case 'viral_pr_push': {
+        const cost = 1800000;
+        if (state.studio.cash < cost) return { success: false, error: `Requires ${formatRupees(cost)} studio capital.` };
+        state.studio.cash -= cost;
+        const fanGain = 1200000 + Math.floor(Math.random() * 1000000);
+        talent.fans = Math.round(talent.fans + fanGain);
+        talent.reputation = Math.min(100, talent.reputation + 8);
+        return {
+          success: true,
+          message: `Launched a nationwide viral social media & paparazzi media campaign for ${talent.name} (+${(fanGain/1000000).toFixed(1)}M Fans, +8 Reputation)!`
+        };
+      }
+
+      // 6. Soho House Power Lunch
+      case 'lunch':
+      case 'vip_power_lunch': {
+        const cost = 150000;
+        if (state.player.cash < cost) return { success: false, error: `Requires ${formatRupees(cost)} personal cash.` };
+        state.player.cash -= cost;
+        talent.relationship = Math.min(100, (talent.relationship || 40) + 16);
+        talent.loyalty = Math.min(100, (talent.loyalty || 60) + 15);
+        return {
+          success: true,
+          message: `Shared an exclusive private power lunch at Soho House Mumbai with ${talent.name} (+16 Relationship, +15 Loyalty).`
+        };
+      }
+
+      // 7. Luxury Cartier / Rolex Gift
+      case 'gift':
+      case 'luxury_gift': {
+        const cost = 1000000;
+        if (state.player.cash < cost) return { success: false, error: `Requires ${formatRupees(cost)} personal cash.` };
+        state.player.cash -= cost;
+        talent.relationship = Math.min(100, (talent.relationship || 40) + 25);
+        talent.loyalty = Math.min(100, (talent.loyalty || 60) + 25);
+        return {
+          success: true,
+          message: `Gifted ${talent.name} a bespoke luxury Cartier timepiece and private luxury hamper (+25 Relationship, +25 Loyalty).`
+        };
+      }
+
+      // 8. Tabloid Paparazzi Hush Money
+      case 'hush_money': {
+        const cost = 2500000;
+        if (state.studio.cash < cost) return { success: false, error: `Requires ${formatRupees(cost)} studio capital.` };
+        state.studio.cash -= cost;
+        talent.reputation = Math.min(100, talent.reputation + 15);
+        talent.loyalty = Math.min(100, (talent.loyalty || 60) + 30);
+        return {
+          success: true,
+          message: `Silenced controversial tabloid paparazzi leaks regarding ${talent.name} and scrubbed media archives (+15 Reputation, +30 Loyalty).`
         };
       }
 
@@ -456,45 +545,167 @@ window.StudioGame.Systems.Talent = (function() {
   }
 
   /**
-   * Bailout a talent's debt to earn deep loyalty and permanent discount
+   * Purchase a distressed talent's debt note to hold on studio balance sheet
+   * (Available only on smaller/rising talents, not established megastars)
    */
-  function bailoutDebt(state, talentId) {
+  function purchaseTalentDebt(state, talentId) {
     ensureTalentState(state);
     const talent = state.talent.find(t => t.id === talentId);
     if (!talent) return { success: false, error: 'Talent not found' };
-    if (!talent.debt || talent.debt <= 0) return { success: false, error: 'Talent has no outstanding debt.' };
+    if (!talent.debt || talent.debt <= 0) return { success: false, error: `${talent.name} has no distressed debt note to acquire.` };
+
+    // Megastar restriction: Established titans manage private institutional wealth
+    const isMegastar = talent.tier === 'megastar' || (talent.netWorth && talent.netWorth >= 50000000);
+    if (isMegastar) {
+      return {
+        success: false,
+        error: `${talent.name} is a high-net-worth megastar. Distressed debt note acquisitions are only available for emerging starlets, commercial models, and rising talents.`
+      };
+    }
 
     const debtAmount = talent.debt;
     if (state.studio.cash < debtAmount) {
       return {
         success: false,
-        error: `Insufficient studio funds to clear ${window.StudioGame.Systems.Finance.formatRupees(debtAmount)} debt.`
+        error: `Insufficient studio funds to purchase debt note (Requires ${window.StudioGame.Systems.Finance.formatRupees(debtAmount)}).`
       };
     }
 
+    // Purchase debt from creditor
     state.studio.cash -= debtAmount;
-    talent.debt = 0;
-    talent.loyalty = Math.min(100, talent.loyalty + 45);
-    talent.relationship = Math.min(100, (talent.relationship || 40) + 30);
-    // 35% permanent discount on all quotes
-    talent.averageFee = Math.round(talent.averageFee * 0.65);
+
+    // Studio now HOLDS the debt note as an asset!
+    talent.debtHeldBy = 'player_studio';
+    talent.debtOriginalAmount = debtAmount;
+    talent.debtFaceValue = debtAmount;
+    talent.debt = debtAmount; // Debt remains on talent, but owed to player studio
+    talent.loyalty = 98;
+    talent.relationship = Math.min(100, (talent.relationship || 40) + 35);
+    // 45% permanent discount on talent quotes
+    talent.averageFee = Math.round(talent.averageFee * 0.55);
+
+    // If not signed, immediately sign 6-month exclusive contract
+    if (talent.contractStatus !== 'signed_player') {
+      talent.contractStatus = 'signed_player';
+      talent.contractWith = state.studio.name;
+      talent.contractWithStudioId = 'player_studio';
+      talent.contractDaysRemaining = 180;
+    } else {
+      talent.contractDaysRemaining = Math.max(talent.contractDaysRemaining, 180);
+    }
 
     state.feed.unshift({
-      id: 'evt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+      id: 'evt_debt_acq_' + Date.now(),
       day: state.clock.day,
       date: state.clock.formattedDate,
-      category: 'Philanthropy',
-      title: 'Debt Bailout Cleared',
-      body: `${state.studio.name} settled ${window.StudioGame.Systems.Finance.formatRupees(debtAmount)} in personal debts for ${talent.name}. Their loyalty is now profound.`,
-      icon: '🤝'
+      category: 'Trade Finance',
+      title: 'Debt Note Acquired',
+      body: `${state.studio.name} acquired ${talent.name}'s ${window.StudioGame.Systems.Finance.formatRupees(debtAmount)} distressed debt note from creditors. ${talent.name} is now financially bound to your studio!`,
+      icon: '📑'
     });
 
-    return { success: true, debtAmount };
+    return { success: true, debtAmount, talentName: talent.name };
   }
 
   /**
-   * Terminate contract early
+   * Accept rival studio's buyout offer for a talent debt note
    */
+  function acceptRivalDebtBuyout(state, talentId) {
+    ensureTalentState(state);
+    const talent = state.talent.find(t => t.id === talentId);
+    if (!talent) return { success: false, error: 'Talent not found.' };
+
+    const offer = talent.rivalDebtBuyoutOffer;
+    if (!offer) return { success: false, error: 'No active buyout offer for this debt note.' };
+
+    const offerAmount = offer.offerAmount;
+    const origDebt = talent.debtOriginalAmount || talent.debt || 1000000;
+    const profit = offerAmount - origDebt;
+
+    // Collect buyout cash
+    state.studio.cash += offerAmount;
+
+    // Transfer debt note to rival studio
+    talent.debtHeldBy = offer.rivalStudioName;
+    talent.contractStatus = 'signed_rival';
+    talent.contractWith = offer.rivalStudioName;
+    talent.contractDaysRemaining = 180;
+    talent.rivalDebtBuyoutOffer = null;
+
+    state.feed.unshift({
+      id: 'evt_debt_sold_' + Date.now(),
+      day: state.clock.day,
+      date: state.clock.formattedDate,
+      category: 'Trade Deal',
+      title: `Debt Note Sold: ${talent.name}`,
+      body: `${state.studio.name} sold ${talent.name}'s debt note to ${offer.rivalStudioName} for ${window.StudioGame.Systems.Finance.formatRupees(offerAmount)} (Net profit: +${window.StudioGame.Systems.Finance.formatRupees(profit)}). ${talent.name} transfers to ${offer.rivalStudioName}.`,
+      icon: '💰'
+    });
+
+    return { success: true, offerAmount, profit, rivalStudioName: offer.rivalStudioName };
+  }
+
+  /**
+   * Reject rival studio buyout offer
+   */
+  function rejectRivalDebtBuyout(state, talentId) {
+    ensureTalentState(state);
+    const talent = state.talent.find(t => t.id === talentId);
+    if (!talent || !talent.rivalDebtBuyoutOffer) return { success: false, error: 'No active buyout offer.' };
+
+    const rivalName = talent.rivalDebtBuyoutOffer.rivalStudioName;
+    talent.rivalDebtBuyoutOffer = null;
+    talent.loyalty = Math.min(100, (talent.loyalty || 60) + 6);
+
+    state.feed.unshift({
+      id: 'evt_debt_rej_' + Date.now(),
+      day: state.clock.day,
+      date: state.clock.formattedDate,
+      category: 'Trade Stand',
+      title: 'Buyout Offer Rejected',
+      body: `${state.studio.name} rejected ${rivalName}'s debt buyout offer for ${talent.name}. Star loyalty deepened.`,
+      icon: '🛡️'
+    });
+
+    return { success: true };
+  }
+
+  /**
+   * Forgive talent debt in exchange for permanent 5-year studio contract
+   */
+  function forgiveDebtForRetention(state, talentId) {
+    ensureTalentState(state);
+    const talent = state.talent.find(t => t.id === talentId);
+    if (!talent) return { success: false, error: 'Talent not found.' };
+
+    talent.debtHeldBy = null;
+    talent.debt = 0;
+    talent.rivalDebtBuyoutOffer = null;
+    talent.contractStatus = 'signed_player';
+    talent.contractWith = state.studio.name;
+    talent.contractWithStudioId = 'player_studio';
+    talent.contractDaysRemaining = 1825; // 5 full years
+    talent.loyalty = 100;
+    talent.relationship = 100;
+
+    state.feed.unshift({
+      id: 'evt_debt_forgiven_' + Date.now(),
+      day: state.clock.day,
+      date: state.clock.formattedDate,
+      category: 'Philanthropy',
+      title: `Debt Forgiven: 5-Year Lock with ${talent.name}`,
+      body: `${state.studio.name} wrote off ${talent.name}'s debt note. In eternal gratitude, ${talent.name} signed an exclusive 5-year retention contract!`,
+      icon: '🌟'
+    });
+
+    return { success: true };
+  }
+
+  // Alias for backward compatibility
+  function bailoutDebt(state, talentId) {
+    return purchaseTalentDebt(state, talentId);
+  }
+
   function releaseContract(state, talentId) {
     ensureTalentState(state);
     const talent = state.talent.find(t => t.id === talentId);
@@ -545,6 +756,10 @@ window.StudioGame.Systems.Talent = (function() {
     extendContract,
     poachTalent,
     interactWithTalent,
+    purchaseTalentDebt,
+    acceptRivalDebtBuyout,
+    rejectRivalDebtBuyout,
+    forgiveDebtForRetention,
     bailoutDebt,
     releaseContract,
     getActiveSignedTalents,

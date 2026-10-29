@@ -312,10 +312,26 @@ window.StudioGame.Systems.Projects = (function() {
     const genreDef = CINEMA_GENRES.find(g => g.id === params.genreId) || CINEMA_GENRES[0];
 
     const leadActor = (state.talent || []).find(t => t.id === params.leadActorId);
-    const leadActress = (state.talent || []).find(t => t.id === params.leadActressId);
+    let leadActress = (state.talent || []).find(t => t.id === params.leadActressId);
+
+    if (params.leadActressId === 'talent_wife' && state.wife) {
+      leadActress = {
+        id: 'talent_wife',
+        name: `${state.wife.name} (Wife & Co-Founder)`,
+        gender: 'female',
+        contractStatus: 'signed_player',
+        contractDaysRemaining: 9999,
+        averageFee: 0,
+        flatFee: 0,
+        acting: Math.round(state.wife.skills?.acting || 30),
+        glamour: Math.round(state.wife.skills?.glamour || 40),
+        fans: Math.round(((state.wife.skills?.glamour || 40) + (state.wife.skills?.acting || 30)) * 75000),
+        tier: 'Co-Founder Star'
+      };
+    }
 
     let actorFee = leadActor ? (leadActor.contractStatus === 'signed_player' ? Math.round(leadActor.averageFee * 0.2) : leadActor.averageFee) : 500000;
-    let actressFee = leadActress ? (leadActress.contractStatus === 'signed_player' ? Math.round(leadActress.averageFee * 0.2) : leadActress.averageFee) : 500000;
+    let actressFee = leadActress ? (leadActress.id === 'talent_wife' ? 0 : (leadActress.contractStatus === 'signed_player' ? Math.round(leadActress.averageFee * 0.2) : leadActress.averageFee)) : 500000;
 
     let subtotalCost = formatDef.baseCost + actorFee + actressFee;
 
@@ -405,6 +421,17 @@ window.StudioGame.Systems.Projects = (function() {
     
     let talent = null;
     if (params.talent) talent = params.talent;
+    else if (params.talentId === 'talent_wife' && state.wife) {
+      talent = {
+        id: 'talent_wife',
+        name: `${state.wife.name} (Wife & Co-Founder)`,
+        contractStatus: 'signed_player',
+        contractDaysRemaining: 9999,
+        fans: Math.round(((state.wife.skills?.glamour || 40) + (state.wife.skills?.acting || 30)) * 75000),
+        averageFee: 0,
+        flatFee: 0
+      };
+    }
     else if (params.talentId) talent = (state.talent || []).find(t => t.id === params.talentId);
     
     if (!talent) {
@@ -494,7 +521,18 @@ window.StudioGame.Systems.Projects = (function() {
     }
 
     const talentId = params.talentId;
-    const talent = (state.talent || []).find(t => t.id === talentId);
+    let talent = (state.talent || []).find(t => t.id === talentId);
+    if (talentId === 'talent_wife' && state.wife) {
+      talent = {
+        id: 'talent_wife',
+        name: `${state.wife.name} (Wife & Co-Founder)`,
+        contractStatus: 'signed_player',
+        contractDaysRemaining: 9999,
+        fans: Math.round(((state.wife.skills?.glamour || 40) + (state.wife.skills?.acting || 30)) * 75000),
+        averageFee: 0,
+        flatFee: 0
+      };
+    }
     if (!talent) {
       return { success: false, error: 'Please select an artiste for the commercial shoot.' };
     }
@@ -758,6 +796,24 @@ window.StudioGame.Systems.Projects = (function() {
     // Dynamic Star Relations & Morale changes
     [proj.leadActorId, proj.leadActressId].forEach(talentId => {
       if (!talentId) return;
+
+      if (talentId === 'talent_wife' && state.wife) {
+        state.wife.skills.acting = Math.min(100, (state.wife.skills.acting || 30) + 12);
+        state.wife.skills.glamour = Math.min(100, (state.wife.skills.glamour || 40) + 8);
+        state.wife.relationship = Math.min(100, (state.wife.relationship || 90) + (roi >= 1.0 ? 8 : 2));
+        const royalty = Math.round(proj.theatricalGrossTotal * 0.05);
+        state.wife.netWorth += royalty;
+        state.wife.careerEarningsTotal += royalty;
+        state.wife.careerHistory.unshift({
+          day: state.clock.day,
+          date: state.clock.formattedDate,
+          roleId: state.wife.currentRoleId,
+          roleName: state.wife.currentRole,
+          title: `Box Office Triumph: "${proj.name}" (${verdict})`,
+          description: `Starred as lead heroine in ${proj.name}. Collected ${window.StudioGame.Systems.Finance.formatRupees(proj.theatricalGrossTotal)} worldwide, delivering ${window.StudioGame.Systems.Finance.formatRupees(royalty)} personal box office royalty!`
+        });
+      }
+
       const t = (state.talent || []).find(star => star.id === talentId);
       if (t) {
         t.pastTopFilms = t.pastTopFilms || [];

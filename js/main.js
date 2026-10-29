@@ -16,6 +16,14 @@ window.StudioGame.App = (function() {
       unlockVersion: '0.1'
     },
     {
+      id: 'wife',
+      name: 'Wife',
+      icon: '💍',
+      unlocked: true,
+      unlockVersion: '0.2',
+      description: 'Partner & Co-founder: career decisions, relationship dynamics, openness, social events, fitness investments, and luxury business ventures.'
+    },
+    {
       id: 'actions',
       name: 'Actions',
       icon: '🎬',
@@ -158,6 +166,8 @@ window.StudioGame.App = (function() {
 
     if (activeTab === 'home') {
       showDashboard();
+    } else if (activeTab === 'wife') {
+      showWife();
     } else if (activeTab === 'actions') {
       showActions();
     } else if (activeTab === 'talent') {
@@ -305,6 +315,28 @@ window.StudioGame.App = (function() {
     });
   }
 
+  
+  function showWife() {
+    activeTab = 'wife';
+    updateActiveTabVisuals();
+    const viewport = document.getElementById('screenViewport');
+    const tabBar = document.getElementById('bottomTabBar');
+    if (tabBar) tabBar.style.display = 'block';
+
+    const state = window.StudioGame.State.get();
+    if (!state) return;
+
+    if (window.StudioGame.UI.WifeScreen) {
+      window.StudioGame.UI.WifeScreen.render(viewport, state, {
+        onAdvanceTurn: handleAdvanceTurn,
+        onAdvanceToEvent: handleAdvanceToEvent,
+        onStateChange: () => {
+          showWife();
+        }
+      });
+    }
+  }
+
   function showDashboard() {
     const viewport = document.getElementById('screenViewport');
     const tabBar = document.getElementById('bottomTabBar');
@@ -407,6 +439,7 @@ window.StudioGame.App = (function() {
   return {
     init,
     showDashboard,
+    showWife,
     showActions,
     showTalent,
     showStudios,

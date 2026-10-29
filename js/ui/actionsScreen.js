@@ -1132,6 +1132,30 @@ window.StudioGame.UI.ActionsScreen = (function() {
     const freeSignedTalents = signedTalents.filter(t => !busyTalentMap[t.id]);
     const busySignedTalents = signedTalents.filter(t => !!busyTalentMap[t.id]);
 
+    // Wife as Co-Founder eligible signed artiste (Zero Fee)
+    if (state.wife) {
+      const wifeArtiste = {
+        id: 'talent_wife',
+        name: `${state.wife.name} (Wife & Co-Founder)`,
+        gender: 'female',
+        category: state.wife.currentRole || 'Co-Founder Artiste',
+        contractStatus: 'signed_player',
+        contractDaysRemaining: 9999,
+        averageFee: 0,
+        flatFee: 0,
+        fans: Math.round(((state.wife.skills?.glamour || 40) + (state.wife.skills?.acting || 30)) * 75000),
+        acting: Math.round(state.wife.skills?.acting || 30),
+        glamour: Math.round(state.wife.skills?.glamour || 40),
+        avatarSeed: 'wife'
+      };
+      if (busyTalentMap['talent_wife']) {
+        busySignedTalents.unshift(wifeArtiste);
+      } else {
+        freeSignedTalents.unshift(wifeArtiste);
+      }
+      signedTalents.unshift(wifeArtiste);
+    }
+
     // Case A: No signed talent in studio roster
     if (signedTalents.length === 0) {
       return `
@@ -1714,6 +1738,27 @@ window.StudioGame.UI.ActionsScreen = (function() {
     function renderModalContent() {
       const signedStars = allStars.filter(s => s.contractStatus === 'signed_player' && s.contractDaysRemaining > 0);
       const freeAgents = allStars.filter(s => s.contractStatus !== 'signed_player');
+
+      // Add Wife if casting female actress and wife is available
+      if ((gender === 'female' || !gender || gender === 'both' || gender === 'all') && state.wife) {
+        const isWifeShooting = (state.studio.projects || []).some(p => p.leadActressId === 'talent_wife' || p.leadActorId === 'talent_wife');
+        if (!isWifeShooting && !signedStars.some(s => s.id === 'talent_wife')) {
+          signedStars.unshift({
+            id: 'talent_wife',
+            name: `${state.wife.name} (Wife & Co-Founder)`,
+            gender: 'female',
+            category: state.wife.currentRole || 'Co-Founder Artiste',
+            contractStatus: 'signed_player',
+            contractDaysRemaining: 9999,
+            averageFee: 0,
+            flatFee: 0,
+            fans: Math.round(((state.wife.skills?.glamour || 40) + (state.wife.skills?.acting || 30)) * 75000),
+            acting: Math.round(state.wife.skills?.acting || 30),
+            glamour: Math.round(state.wife.skills?.glamour || 40),
+            avatarSeed: 'wife'
+          });
+        }
+      }
 
       let currentList = activeModalTab === 'signed' ? signedStars : freeAgents;
 

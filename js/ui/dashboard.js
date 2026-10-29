@@ -281,7 +281,9 @@ window.StudioGame.UI.Dashboard = (function() {
     const wifeCard = document.getElementById('cardWifeDashboard');
     if (wifeCard) {
       wifeCard.addEventListener('click', () => {
-        if (window.StudioGame.UI.WifeScreen) {
+        if (window.StudioGame.App && window.StudioGame.App.showWife) {
+          window.StudioGame.App.showWife();
+        } else if (window.StudioGame.UI.WifeScreen) {
           window.StudioGame.UI.WifeScreen.open(state, callbacks.onStateChange);
         } else if (window.StudioGame.UI.WifePreview) {
           window.StudioGame.UI.WifePreview.open(state);

@@ -1,10 +1,42 @@
-# Film City Tycoon (v1.06 Master Edition)
+# Film City Tycoon (v1.07 Wife & Life Partner Master Edition)
 
 A deep, multi-turn studio management simulation where you and your partner build an Indian cinema empire from the ground up against rival studios, talent unicorn production houses, and Dalal Street market forces.
 
 ---
 
 ## 🌟 What's Included & Implemented
+
+### 💍 New in v1.07: Comprehensive Dynamic Wife Module & Life Partner Simulation
+- **First-Class Main Navigation Screen**:
+  - Dedicated **💍 Wife** tab accessible from top navbar or dashboard card, featuring rich obsidian/rose-gold styling and 6 interactive sub-views (*Overview, Career & Agency, Brand Enterprise, High Society, Romance & Dates, Life Chronicle*).
+- **Dynamic Relationship Mechanics & Emotional Drift**:
+  - **Trust & Loyalty Meter (0–100)**: Fluctuates based on dates, lifestyle investments, career support, and dialogue choices.
+  - **Neglect Cooldown**: If neglected without a date for >35 days, relationship begins cooling by -0.35/day with pensive/strained moods.
+  - **Devotion Perk**: High relationship (≥85) provides a permanent +15% boost to studio industry reputation.
+  - **Marital Crisis & Estrangement Event (<30 Trust)**: Triggers marital separation warnings and a dramatic **Grand Reconciliation Apology** (₹15 Lakhs romantic getaway to Amalfi / Udaipur) to restore trust.
+- **Openness Dynamics & High-Society Luxury Encounters (Taj Land's End, Soho House, St. Regis)**:
+  - Paparazzi spottings and private rendezvous at luxury rooftop lounges with influential industrialists and charismatic actors.
+  - 3 dynamic player responses:
+    1. **Forgive & Mutual Freedom**: +10 Openness, warm trust, unlocks 30%–50% exclusive talent signing discounts on charismatic male stars (`unlockedTalentDiscounts`).
+    2. **Confront & Object**: -12 Openness, -14% trust (marital friction and defensive dialogue).
+    3. **Crisis PR Cleanup**: Spend ₹2.5L to discreetly buy out tabloid negatives and preserve studio reputation.
+- **Autonomous Career Agency & External Studio Offers**:
+  - 10 distinct career paths (*Studio Creative Head, Marketing Head, Casting Head, Finance Head, Independent Actress, High-Fashion Model, Film Producer, Brand Founder, Private Angel Investor, Creative Sabbatical*).
+  - Outside job offers from rival powerhouses (*Dharma Productions, Yash Raj Films, Vogue India, NetPrime Originals*) with multi-crore compensation packages.
+  - Interactive player consultation console to guide her decisions or encourage independent growth.
+- **Luxury Brand Enterprise (`Rhea Luxury Botanicals`) & Dalal Street IPO**:
+  - Founder venture progression through Seed, Flagship Store launch, and Pan-India retail expansion.
+  - **Float on Dalal Street**: Float an IPO once enterprise valuation reaches ₹15+ Cr, delivering an instant ₹8–15 Cr windfall to her net worth and recurring quarterly co-founder dividends to the studio treasury.
+- **Zero-Fee Star Casting in Studio Productions**:
+  - Cast your wife as **Lead Heroine** in Cinema features or **Lead Artiste** in Commercial shoots for **₹0 upfront fee**.
+  - On film wrap, she receives a 5% box office royalty on theatrical distributor collections and permanent Acting & Glamour skill surges.
+- **Interactive Heart-to-Heart Consultations**:
+  - Interactive dialogue console covering *Career & Aspirations*, *Marriage & Bonding*, *Studio Strategy Analysis*, and *Openness & High Society*.
+- **Fitness & Radiance Investments & Romantic Date Tiers**:
+  - 3 Fitness tiers (*At-Home Yoga & Ayurvedic Nutrition, Bandra Celebrity Pilates, Swiss Alpine Wellness Retreat*).
+  - 3 Romantic Date tiers (*Sunset Marine Drive Dinner, Taj Land's End Private Suite, Private Yacht Charter to Alibaug*).
+
+---
 
 ### 🚀 Production, Bidding & Talent Fame Scaling Fixes
 - **Cinema Greenlight Button Restoration & Seamless Star Casting**:

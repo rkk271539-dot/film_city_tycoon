@@ -6,6 +6,22 @@ A deep, multi-turn studio management simulation where you and your partner build
 
 ## 🌟 What's Included & Implemented
 
+### 🚀 Production, Bidding & Talent Fame Scaling Fixes
+- **Cinema Greenlight Button Restoration & Seamless Star Casting**:
+  - Automatically defaults lead hero and heroine selections to signed studio artistes (with an 80% discount) or top available stars.
+  - Quick-sign exclusive 3 to 36-month contracts directly from the casting modal or cast guest stars at standard market quotes.
+  - Exported canonical `greenlightCinemaProject` and `launchCinemaFeature` aliases so production launches flawlessly onto the floor.
+- **Custom Commercial Shoot Execution & Realistic Endorsement Quotes**:
+  - Attached full event listener and state pipeline for `#btnLaunchCommission`.
+  - Realistic ad fees for commercial photoshoots and short ad films (~5% of feature movie fees, capped at ₹75 Lakhs with 80% signed discount) ensuring accessible, profitable ad shoots.
+  - Commercial shoots automatically record lead talent and deliver fan growth and studio payout on completion.
+- **RFP Client Bidding System & Star Ambassador Fame Scaling**:
+  - Fixed bidding button crash by standardizing result object returns across win, rival loss, and studio soundstage capacity checks.
+  - **Dynamic Talent Attachment**: Attach signed stars or top talent to RFP briefs as brand ambassadors.
+  - **Fame Multipliers**: Star fame directly increases effective client RFP budget (up to 2.8x for Megastars), raises bid appeal points (+42 pts), and boosts projected revenue and profit margins.
+  - High star fame significantly increases contract win odds even at premium bid margins.
+
+
 ### 🚀 New in v1.06: Dynamic Stock Market Realism, Autonomous Rival Studios & Procedural 400+ Film Titles
 - **Dynamic Two-Way Stock Market Engine & Infinite Money Exploit Fix**:
   - Replaced one-way upward drift with authentic Dalal Street market regimes (*Bull Rally, Institutional Profit Booking, Bear Corrections, and Value Accumulation*).

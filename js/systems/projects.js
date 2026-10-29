@@ -149,11 +149,11 @@ window.StudioGame.Systems.Projects = (function() {
   /**
    * Submit a bid on an RFP contract against rival studios
    */
-  function submitBid(state, rfpId, playerBidAmount) {
+  function submitBid(state, rfpId, playerBidAmount, talentId) {
     ensureProjectState(state);
     const rfpIndex = state.bids.findIndex(b => b.id === rfpId);
     if (rfpIndex === -1) {
-      return { success: false, error: 'Contract RFP is no longer active.' };
+      return { success: false, won: false, error: 'Contract RFP is no longer active.' };
     }
 
     const rfp = state.bids[rfpIndex];
@@ -162,14 +162,16 @@ window.StudioGame.Systems.Projects = (function() {
     if (activeCount >= maxCapacity) {
       return {
         success: false,
+        won: false,
         error: `Studio sound stages are at full capacity (${activeCount}/${maxCapacity} shoots). Finish ongoing projects or upgrade your sound stage.`
       };
     }
 
-    const upfrontDeposit = Math.round(playerBidAmount * 0.25);
+    const upfrontDeposit = Math.round(playerBidAmount * 0.22);
     if (state.studio.cash < upfrontDeposit) {
       return {
         success: false,
+        won: false,
         error: `Insufficient studio cash for upfront crew/equipment deposit (Requires ${window.StudioGame.Systems.Finance.formatRupees(upfrontDeposit)}).`
       };
     }
@@ -185,11 +187,38 @@ window.StudioGame.Systems.Projects = (function() {
     let negotiatorMultiplier = 1.0;
     if (state.player.skill === 'sharp_negotiator') negotiatorMultiplier = 1.25;
 
-    const priceRatio = playerBidAmount / rfp.clientMaxBudget;
-    let priceScore = (1.1 - priceRatio) * 100;
-    if (priceRatio > 1.05) priceScore -= 40;
+    // Attached Talent Fame Impact on Bidding Win Probability & Budget:
+    let attachedTalent = null;
+    let fameBonusScore = 0;
+    let fameMultiplier = 1.0;
 
-    let playerScore = (priceScore * 0.5 + playerQuality * 0.5) * negotiatorMultiplier;
+    if (talentId) {
+      attachedTalent = (state.talent || []).find(t => t.id === talentId);
+    }
+    if (!attachedTalent && state.talent) {
+      attachedTalent = state.talent.find(t => t.contractStatus === 'signed_player');
+    }
+
+    if (attachedTalent) {
+      const fans = attachedTalent.fans || 500000;
+      if (fans >= 40000000) { fameBonusScore = 42; fameMultiplier = 2.8; }
+      else if (fans >= 20000000) { fameBonusScore = 32; fameMultiplier = 2.2; }
+      else if (fans >= 8000000) { fameBonusScore = 22; fameMultiplier = 1.7; }
+      else if (fans >= 2000000) { fameBonusScore = 14; fameMultiplier = 1.35; }
+      else { fameBonusScore = 7; fameMultiplier = 1.1; }
+
+      // Glamour adds high-fashion brand appeal
+      fameBonusScore += Math.round(((attachedTalent.glamour || 50) + (attachedTalent.acting || 50)) / 14);
+    }
+
+    // Effective client max budget scales up when famous talent is attached!
+    const effectiveClientBudget = Math.round(rfp.clientMaxBudget * fameMultiplier);
+
+    const priceRatio = playerBidAmount / effectiveClientBudget;
+    let priceScore = (1.15 - priceRatio) * 100;
+    if (priceRatio > 1.08) priceScore -= 35;
+
+    let playerScore = (priceScore * 0.45 + (playerQuality + fameBonusScore) * 0.55) * negotiatorMultiplier;
     playerScore += (Math.random() * 12 - 6);
 
     let bestRival = null;
@@ -215,9 +244,13 @@ window.StudioGame.Systems.Projects = (function() {
         finalDuration = Math.max(1, Math.round(finalDuration * upgradeBonuses.speedMultiplier));
       }
 
+      const projTitle = attachedTalent
+        ? `${rfp.clientName} Brand Ad ft. ${attachedTalent.name}`
+        : `${rfp.clientName} ${rfp.format}`;
+
       const newProject = {
         id: 'proj_' + Date.now(),
-        name: rfp.title,
+        name: projTitle,
         clientName: rfp.clientName,
         format: rfp.format,
         genreName: rfp.genreName,
@@ -226,8 +259,10 @@ window.StudioGame.Systems.Projects = (function() {
         daysElapsed: 0,
         agreedPayout: playerBidAmount,
         upfrontInvested: upfrontDeposit,
+        leadActorName: attachedTalent ? attachedTalent.name : 'Studio Artistes',
+        leadActorId: attachedTalent ? attachedTalent.id : null,
         stage: 'Pre-Production & Set Setup',
-        qualityScore: Math.round(playerQuality)
+        qualityScore: Math.round(playerQuality + fameBonusScore)
       };
 
       state.studio.projects.push(newProject);
@@ -238,19 +273,23 @@ window.StudioGame.Systems.Projects = (function() {
         date: state.clock.formattedDate,
         category: 'Production',
         title: `Contract Won: ${rfp.clientName}`,
-        body: `Your studio beat ${bestRival.name} to win the ${rfp.format} contract for ${window.StudioGame.Systems.Finance.formatRupees(playerBidAmount)}!`,
+        body: `Your studio beat ${bestRival.name} to win the ${rfp.format} contract for ${window.StudioGame.Systems.Finance.formatRupees(playerBidAmount)} ${attachedTalent ? `featuring ${attachedTalent.name}` : ''}! Projected net profit: +${window.StudioGame.Systems.Finance.formatRupees(playerBidAmount - upfrontDeposit)}.`,
         icon: '🏆'
       });
 
       return {
+        success: true,
         won: true,
         project: newProject,
         bestRival: bestRival,
+        winner: null,
         message: `Congratulations! ${rfp.clientName} selected your studio over ${bestRival.name}!`
       };
     } else {
       return {
+        success: false,
         won: false,
+        winner: { name: bestRival.name, bid: bestRival.bidAmount },
         winnerName: bestRival.name,
         winningBid: bestRival.bidAmount,
         message: `${rfp.clientName} awarded the contract to ${bestRival.name} (${window.StudioGame.Systems.Finance.formatRupees(bestRival.bidAmount)}).`
@@ -362,10 +401,16 @@ window.StudioGame.Systems.Projects = (function() {
   function calculateCostBill(state, params = {}) {
     ensureProjectState(state);
     const format = params.format || 'Commercial Photoshoot';
-    const isAd = format === 'Short Ad Film';
-    const talent = params.talent || (state.talent && state.talent[0]) || { name: 'Simran Ahuja', averageFee: 35000 };
+    const isAd = format === 'Short Ad Film' || format === 'Ad Film Commercial';
+    const talent = params.talent || (params.talentId ? (state.talent || []).find(t => t.id === params.talentId) : null) || (state.talent && state.talent[0]) || { name: 'Simran Ahuja', averageFee: 35000, fans: 500000 };
 
-    let modelFee = talent.flatFee || talent.averageFee || 40000;
+    // Commercial endorsement quote is ~5% of feature fee (capped realistically between ₹35k and ₹75L)
+    const baseEndorsementFee = talent.flatFee || Math.min(7500000, Math.max(35000, Math.round((talent.averageFee || 50000) * 0.05)));
+    let modelFee = baseEndorsementFee;
+    if (talent.contractStatus === 'signed_player') {
+      modelFee = Math.round(modelFee * 0.2); // 80% discount for signed studio talent
+    }
+
     let studioRent = isAd ? 65000 : 20000;
     let cameraEquipmentRent = isAd ? 45000 : 18000;
     let crewAndLighting = isAd ? 55000 : 22000;
@@ -391,14 +436,20 @@ window.StudioGame.Systems.Projects = (function() {
 
     const contingencyBuffer = Math.round(subtotal * 0.08);
     const totalCost = Math.round(subtotal + contingencyBuffer);
-    const projectedRevenue = Math.round(totalCost * (isAd ? 1.60 : 1.45));
+
+    // Revenue scales directly with talent fame!
+    const fanBoost = Math.min(3.0, ((talent.fans || 500000) / 7500000));
+    const fameMultiplier = isAd ? (1.55 + fanBoost * 0.70) : (1.40 + fanBoost * 0.50);
+    const projectedRevenue = Math.round(totalCost * fameMultiplier);
+    const profit = projectedRevenue - totalCost;
 
     return {
       format,
       talentName: talent.name,
+      talentId: talent.id,
       durationDays: isAd ? 8 : 2,
       lineItems: [
-        { label: 'Lead Model / Talent Flat Fee', amount: Math.round(modelFee), note: talent.name },
+        { label: 'Lead Model / Talent Fee', amount: Math.round(modelFee), note: talent.contractStatus === 'signed_player' ? `${talent.name} (Signed 80% Off)` : talent.name },
         { label: 'Sound Stage Floor & Electrical Rent', amount: Math.round(studioRent), note: 'Studio Facilities' },
         { label: '4K Cinema Optics & Rigging Rent', amount: Math.round(cameraEquipmentRent), note: 'Digital Cinema' },
         { label: 'Cinematographer, Gaffer & Crew', amount: Math.round(crewAndLighting), note: 'Technical Crew' },
@@ -410,6 +461,8 @@ window.StudioGame.Systems.Projects = (function() {
       managerDiscount: Math.round(managerDiscount),
       totalCost: totalCost,
       projectedRevenue: projectedRevenue,
+      profit: profit,
+      fameMultiplier: parseFloat(fameMultiplier.toFixed(2)),
       cashRemainingAfter: state.studio.cash - totalCost,
       canAfford: state.studio.cash >= totalCost
     };
@@ -441,6 +494,8 @@ window.StudioGame.Systems.Projects = (function() {
       daysElapsed: 0,
       agreedPayout: bill.projectedRevenue,
       upfrontInvested: bill.totalCost,
+      leadActorId: bill.talentId,
+      leadActorName: bill.talentName,
       stage: 'Pre-Production & Moodboard',
       qualityScore: 50 + Math.floor(Math.random() * 25)
     };
@@ -592,6 +647,18 @@ window.StudioGame.Systems.Projects = (function() {
     completedProj.verdict = completedProj.verdict || 'Commercial Hit';
     state.studio.completedProjects.unshift(completedProj);
 
+    let starFameMsg = '';
+    if (completedProj.leadActorId) {
+      const talent = (state.talent || []).find(t => t.id === completedProj.leadActorId);
+      if (talent) {
+        const growth = window.StudioGame.Systems.Talent.calculateFanGrowth(talent.fans, 'commercial_ad');
+        const fanGain = growth.growth || growth.fanIncrease || 5000;
+        talent.fans += fanGain;
+        talent.loyalty = Math.min(100, (talent.loyalty || 60) + 4);
+        starFameMsg = ` ${talent.name} gained +${window.StudioGame.Systems.Talent.formatFans(fanGain)} fans from national campaign broadcast!`;
+      }
+    }
+
     const netProfitFormatted = window.StudioGame.Systems.Finance.formatRupees(completedProj.profitEarned, { forcePlus: true });
     const payoutFormatted = window.StudioGame.Systems.Finance.formatRupees(completedProj.agreedPayout);
 
@@ -601,7 +668,7 @@ window.StudioGame.Systems.Projects = (function() {
       date: state.clock.formattedDate,
       category: 'Production',
       title: `Shoot Delivered: ${completedProj.name}`,
-      body: `"${completedProj.name}" delivered! Payout of ${payoutFormatted} credited to studio (${netProfitFormatted} net profit).`,
+      body: `"${completedProj.name}" delivered! Payout of ${payoutFormatted} credited to studio (${netProfitFormatted} net profit).${starFameMsg}`,
       icon: '💰'
     });
   }
@@ -684,8 +751,8 @@ window.StudioGame.Systems.Projects = (function() {
   }
 
   function getStudioCapacity(state) {
-    let capacity = 2;
-    if (state.studio.upgrades && state.studio.upgrades.includes('sound_stage_tier2')) {
+    let capacity = state.studio && state.studio.maxConcurrentProjects ? state.studio.maxConcurrentProjects : 2;
+    if (state.studio && state.studio.upgrades && state.studio.upgrades.includes('sound_stage_tier2')) {
       capacity += 1;
     }
     return capacity;
@@ -754,6 +821,7 @@ window.StudioGame.Systems.Projects = (function() {
     refreshAvailableBids,
     submitBid,
     launchCinemaFeature,
+    greenlightCinemaProject: launchCinemaFeature,
     calculateCostBill,
     launchCustomProject,
     dailyTick,

@@ -27,6 +27,10 @@ window.StudioGame.UI.ActionsScreen = (function() {
     talentId: 'talent_starter_1'
   };
 
+  // Track attached talent per RFP brief
+  let rfpAttachedTalents = {};
+  let rfpBidValues = {};
+
   function render(container, state, callbacks = {}) {
     if (!container || !state) return;
     const projectSystem = window.StudioGame.Systems.Projects;
@@ -41,12 +45,15 @@ window.StudioGame.UI.ActionsScreen = (function() {
     const signedMaleTalents = (state.talent || []).filter(t => t.gender === 'male' && t.contractStatus === 'signed_player' && t.contractDaysRemaining > 0);
     const signedFemaleTalents = (state.talent || []).filter(t => t.gender === 'female' && t.contractStatus === 'signed_player' && t.contractDaysRemaining > 0);
 
-    // Auto-select signed talent if not yet picked or if previous pick expired
-    if (!cinemaState.leadActorId || !signedMaleTalents.some(t => t.id === cinemaState.leadActorId)) {
-      cinemaState.leadActorId = signedMaleTalents.length > 0 ? signedMaleTalents[0].id : null;
+    const allMaleTalents = (state.talent || []).filter(t => t.gender === 'male');
+    const allFemaleTalents = (state.talent || []).filter(t => t.gender === 'female');
+
+    // Auto-select talent: prefer signed studio talent, otherwise pick top available talent
+    if (!cinemaState.leadActorId || !allMaleTalents.some(t => t.id === cinemaState.leadActorId)) {
+      cinemaState.leadActorId = signedMaleTalents.length > 0 ? signedMaleTalents[0].id : (allMaleTalents[0]?.id || null);
     }
-    if (!cinemaState.leadActressId || !signedFemaleTalents.some(t => t.id === cinemaState.leadActressId)) {
-      cinemaState.leadActressId = signedFemaleTalents.length > 0 ? signedFemaleTalents[0].id : null;
+    if (!cinemaState.leadActressId || !allFemaleTalents.some(t => t.id === cinemaState.leadActressId)) {
+      cinemaState.leadActressId = signedFemaleTalents.length > 0 ? signedFemaleTalents[0].id : (allFemaleTalents[0]?.id || null);
     }
 
     container.innerHTML = `
@@ -148,6 +155,15 @@ window.StudioGame.UI.ActionsScreen = (function() {
                     <div class="action-hub-title">Client RFP Bids</div>
                     <div class="action-hub-subtitle">Brand ads & competitive shoots</div>
                     <div class="action-hub-badge">${state.bids.length} Open Briefs</div>
+                  </div>
+                </div>
+
+                <div class="action-hub-card" data-subtab="commission">
+                  <div class="action-hub-icon-wrap" style="background: linear-gradient(135deg, #06b6d4, #3b82f6); color: #fff;">📸</div>
+                  <div class="action-hub-content">
+                    <div class="action-hub-title">Commercial Quick Shoots</div>
+                    <div class="action-hub-subtitle">Brand ads, catalog shoots & quick profits</div>
+                    <div class="action-hub-badge badge-cyan">Fast Cashflow</div>
                   </div>
                 </div>
 
@@ -545,11 +561,14 @@ window.StudioGame.UI.ActionsScreen = (function() {
     const selectedFormat = formats.find(f => f.id === cinemaState.formatId) || formats[2];
     const selectedGenre = genres.find(g => g.id === cinemaState.genreId) || genres[0];
 
-    const leadActor = talents.find(t => t.id === cinemaState.leadActorId && t.contractStatus === 'signed_player' && t.contractDaysRemaining > 0);
-    const leadActress = talents.find(t => t.id === cinemaState.leadActressId && t.contractStatus === 'signed_player' && t.contractDaysRemaining > 0);
+    const leadActor = talents.find(t => t.id === cinemaState.leadActorId);
+    const leadActress = talents.find(t => t.id === cinemaState.leadActressId);
 
-    const actorFee = leadActor ? Math.round(leadActor.averageFee * 0.2) : 0;
-    const actressFee = leadActress ? Math.round(leadActress.averageFee * 0.2) : 0;
+    const actorIsSigned = leadActor && leadActor.contractStatus === 'signed_player' && leadActor.contractDaysRemaining > 0;
+    const actressIsSigned = leadActress && leadActress.contractStatus === 'signed_player' && leadActress.contractDaysRemaining > 0;
+
+    const actorFee = leadActor ? (actorIsSigned ? Math.round(leadActor.averageFee * 0.2) : leadActor.averageFee) : 0;
+    const actressFee = leadActress ? (actressIsSigned ? Math.round(leadActress.averageFee * 0.2) : leadActress.averageFee) : 0;
     let totalEst = selectedFormat.baseCost + actorFee + actressFee;
 
     if (state.player.skill === 'brilliant_manager') {
@@ -557,8 +576,8 @@ window.StudioGame.UI.ActionsScreen = (function() {
     }
     totalEst = Math.round(totalEst);
 
-    const hasBothSignedStars = !!leadActor && !!leadActress;
-    const canAfford = state.studio.cash >= totalEst && hasBothSignedStars;
+    const hasBothStars = !!leadActor && !!leadActress;
+    const canAfford = state.studio.cash >= totalEst && hasBothStars;
 
     const actorAvatar = leadActor ? window.StudioGame.Face.generate({ gender: 'male', seed: leadActor.avatarSeed || leadActor.name }) : '';
     const actressAvatar = leadActress ? window.StudioGame.Face.generate({ gender: 'female', seed: leadActress.avatarSeed || leadActress.name }) : '';
@@ -631,8 +650,8 @@ window.StudioGame.UI.ActionsScreen = (function() {
                   <span class="casting-role-badge">Lead Hero / Actor</span>
                   <h4 class="casting-star-name">${escapeHtml(leadActor.name)}</h4>
                   <div class="casting-star-meta">
-                    <span class="badge badge-emerald">⭐ SIGNED (${leadActor.contractDaysRemaining}D Left)</span>
-                    <span class="badge badge-amber font-mono">${formatRupees(actorFee)} (80% Off)</span>
+                    <span class="badge ${actorIsSigned ? 'badge-emerald' : 'badge-slate'}">${actorIsSigned ? `⭐ SIGNED (${leadActor.contractDaysRemaining}D Left)` : '🌟 Free Agent Quote'}</span>
+                    <span class="badge badge-amber font-mono">${formatRupees(actorFee)} ${actorIsSigned ? '(80% Off)' : ''}</span>
                   </div>
                   <div class="casting-stats-mini mt-1">
                     <span>Acting: <strong>${leadActor.acting}</strong></span>
@@ -667,8 +686,8 @@ window.StudioGame.UI.ActionsScreen = (function() {
                   <span class="casting-role-badge">Lead Heroine / Actress</span>
                   <h4 class="casting-star-name">${escapeHtml(leadActress.name)}</h4>
                   <div class="casting-star-meta">
-                    <span class="badge badge-emerald">⭐ SIGNED (${leadActress.contractDaysRemaining}D Left)</span>
-                    <span class="badge badge-amber font-mono">${formatRupees(actressFee)} (80% Off)</span>
+                    <span class="badge ${actressIsSigned ? 'badge-emerald' : 'badge-slate'}">${actressIsSigned ? `⭐ SIGNED (${leadActress.contractDaysRemaining}D Left)` : '🌟 Free Agent Quote'}</span>
+                    <span class="badge badge-amber font-mono">${formatRupees(actressFee)} ${actressIsSigned ? '(80% Off)' : ''}</span>
                   </div>
                   <div class="casting-stats-mini mt-1">
                     <span>Acting: <strong>${leadActress.acting}</strong></span>
@@ -724,8 +743,8 @@ window.StudioGame.UI.ActionsScreen = (function() {
           </div>
 
           <button class="btn btn-primary btn-full mt-3" id="btnGreenlightCinema" ${!canAfford ? 'disabled' : ''}>
-            ${!hasBothSignedStars
-              ? '⚠️ Contract Required: Sign Lead Actor & Actress (1-6 Mo) to Greenlight'
+            ${!hasBothStars
+              ? '⚠️ Please Select Lead Actor & Actress'
               : (state.studio.cash < totalEst
                   ? `Insufficient Funds (${formatRupees(totalEst)} required)`
                   : `🎬 Greenlight & Begin Shoot (${formatRupees(totalEst)})`)
@@ -736,9 +755,21 @@ window.StudioGame.UI.ActionsScreen = (function() {
     `;
   }
 
+  function getTalentFameMultiplier(talent) {
+    if (!talent) return 1.0;
+    const fans = talent.fans || 500000;
+    if (fans >= 40000000) return 2.8; // Megastar: +180% budget & profit
+    if (fans >= 20000000) return 2.2; // Superstar: +120% budget & profit
+    if (fans >= 8000000) return 1.7;  // A-Lister: +70% budget & profit
+    if (fans >= 2000000) return 1.35; // Rising Star: +35% budget & profit
+    return 1.1;                       // Newcomer
+  }
+
   function renderBidsTab(state) {
     const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
+    const formatFans = window.StudioGame.Systems.Talent.formatFans;
     const bids = state.bids || [];
+    const talents = state.talent || [];
 
     if (bids.length === 0) {
       return `
@@ -750,50 +781,106 @@ window.StudioGame.UI.ActionsScreen = (function() {
       `;
     }
 
+    const signedTalents = talents.filter(t => t.contractStatus === 'signed_player');
+    const availableTalents = signedTalents.length > 0 ? signedTalents : talents.slice(0, 15);
+
     return `
       <div class="bids-list">
-        ${bids.map(rfp => `
-          <div class="rfp-card card p-3 mb-3" data-rfp-id="${rfp.id}">
-            <div class="rfp-header">
-              <div>
-                <span class="badge badge-purple">${rfp.brandTier}</span>
-                <h3 class="rfp-title mt-1">${rfp.clientName} &bull; ${rfp.format}</h3>
-              </div>
-              <div class="rfp-budget-badge">
-                <span class="rfp-budget-lbl text-muted">Max Budget</span>
-                <span class="rfp-budget-val highlight-amber font-mono">${formatRupees(rfp.clientMaxBudget)}</span>
-              </div>
-            </div>
-
-            <p class="rfp-desc mt-2">${rfp.description}</p>
-
-            <div class="rfp-rivals-box my-2">
-              <span class="rivals-label">Competing Bidders:</span>
-              <div class="rivals-chips">
-                ${rfp.rivals.map(r => `<span class="rival-chip">🏢 ${r.name}</span>`).join('')}
-              </div>
-            </div>
-
-            <div class="rfp-bid-control mt-2">
-              <div class="bid-slider-row">
-                <span>Your Proposed Bid:</span>
-                <span class="bid-amount-display highlight-emerald font-mono" id="bidDisplay_${rfp.id}">
-                  ${formatRupees(Math.round(rfp.clientMaxBudget * 0.90))}
-                </span>
-              </div>
-              <input type="range" class="form-range rfp-bid-slider"
-                data-rfp-id="${rfp.id}"
-                min="${Math.round(rfp.clientMaxBudget * 0.70)}"
-                max="${Math.round(rfp.clientMaxBudget * 1.10)}"
-                step="25000"
-                value="${Math.round(rfp.clientMaxBudget * 0.90)}">
-            </div>
-
-            <button class="btn btn-primary btn-full mt-3 btn-submit-bid" data-rfp-id="${rfp.id}">
-              Submit Bid Proposal
-            </button>
+        <div class="info-callout mb-3">
+          <div class="callout-icon">💡</div>
+          <div class="callout-text">
+            <strong>Client RFP Contract Bidding Strategy:</strong> Brand clients pay massive budget premiums when you pitch with <strong>famous stars</strong>! Attaching high-fame artistes boosts win probability by up to <strong>+40 points</strong> and increases net profit margins up to <strong>2.8x</strong>!
           </div>
-        `).join('')}
+        </div>
+
+        ${bids.map(rfp => {
+          const selectedTalentId = rfpAttachedTalents[rfp.id] || (signedTalents[0]?.id || availableTalents[0]?.id);
+          const attachedTalent = talents.find(t => t.id === selectedTalentId) || availableTalents[0];
+          const fameMult = getTalentFameMultiplier(attachedTalent);
+          const effectiveMaxBudget = Math.round(rfp.clientMaxBudget * fameMult);
+
+          const defaultBid = Math.round(effectiveMaxBudget * 0.92);
+          const currentBid = rfpBidValues[rfp.id] !== undefined ? rfpBidValues[rfp.id] : defaultBid;
+          const deposit = Math.round(currentBid * 0.22);
+          const estProfit = currentBid - deposit;
+
+          return `
+            <div class="rfp-card card p-3 mb-3" data-rfp-id="${rfp.id}">
+              <div class="rfp-header">
+                <div>
+                  <span class="badge badge-purple">${rfp.brandTier}</span>
+                  <h3 class="rfp-title mt-1">${escapeHtml(rfp.clientName)} &bull; ${rfp.format}</h3>
+                </div>
+                <div class="rfp-budget-badge text-right">
+                  <span class="rfp-budget-lbl text-muted">Client Max Budget</span>
+                  <span class="rfp-budget-val highlight-amber font-mono font-bold">${formatRupees(effectiveMaxBudget)}</span>
+                  ${fameMult > 1.2 ? `<div class="badge badge-gold text-2xs mt-1">🔥 +${Math.round((fameMult - 1) * 100)}% Fame Premium</div>` : ''}
+                </div>
+              </div>
+
+              <p class="rfp-desc mt-2">${escapeHtml(rfp.description)}</p>
+
+              <!-- Star Ambassador Picker -->
+              <div class="rfp-talent-attach-box my-3 p-2 rounded bg-opacity-20 bg-slate-800 border border-slate-700">
+                <div class="flex items-center justify-between mb-1">
+                  <label class="form-label text-xs font-bold mb-0">Attached Star Ambassador:</label>
+                  <span class="text-xs highlight-gold">🔥 ${attachedTalent ? formatFans(attachedTalent.fans) : '500K'} Fans &bull; ${attachedTalent ? attachedTalent.category : 'Artiste'}</span>
+                </div>
+                <select class="form-input rfp-talent-select font-bold" data-rfp-id="${rfp.id}">
+                  ${talents.map(t => {
+                    const isSigned = t.contractStatus === 'signed_player';
+                    return `<option value="${t.id}" ${t.id === selectedTalentId ? 'selected' : ''}>
+                      ${isSigned ? '⭐ [SIGNED] ' : ''}${t.name} (🔥 ${formatFans(t.fans)} &bull; ${t.category})
+                    </option>`;
+                  }).join('')}
+                </select>
+                <div class="text-xs text-muted mt-1 flex items-center justify-between">
+                  <span>Star Glamour: <strong>${attachedTalent?.glamour || 50}/100</strong></span>
+                  <span class="highlight-emerald font-bold">Client Win Appeal: +${Math.round((fameMult - 1) * 35 + 8)} Pts</span>
+                </div>
+              </div>
+
+              <div class="rfp-rivals-box my-2">
+                <span class="rivals-label">Competing Bidders:</span>
+                <div class="rivals-chips">
+                  ${rfp.rivals.map(r => `<span class="rival-chip">🏢 ${escapeHtml(r.name)}</span>`).join('')}
+                </div>
+              </div>
+
+              <!-- Proposed Bid Slider -->
+              <div class="rfp-bid-control mt-2">
+                <div class="bid-slider-row flex items-center justify-between mb-1">
+                  <span class="text-xs font-bold">Your Proposed Contract Quote:</span>
+                  <span class="bid-amount-display highlight-emerald font-mono font-bold" id="bidDisplay_${rfp.id}">
+                    ${formatRupees(currentBid)}
+                  </span>
+                </div>
+                <input type="range" class="form-range rfp-bid-slider w-full"
+                  data-rfp-id="${rfp.id}"
+                  min="${Math.round(effectiveMaxBudget * 0.65)}"
+                  max="${Math.round(effectiveMaxBudget * 1.15)}"
+                  step="25000"
+                  value="${currentBid}">
+              </div>
+
+              <!-- Projected Profit Summary Box -->
+              <div class="rfp-profit-callout p-2 my-2 rounded" style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25);">
+                <div class="flex items-center justify-between text-xs">
+                  <span>Agreed Payout: <strong class="highlight-emerald font-mono font-bold" id="payoutDisplay_${rfp.id}">${formatRupees(currentBid)}</strong></span>
+                  <span>Shoot Deposit: <strong class="font-mono text-dim" id="depositDisplay_${rfp.id}">${formatRupees(deposit)}</strong></span>
+                </div>
+                <div class="text-xs mt-1 flex items-center justify-between">
+                  <span class="text-muted">Studio Net Profit Margin:</span>
+                  <span class="highlight-gold font-mono font-bold text-sm" id="profitDisplay_${rfp.id}">+${formatRupees(estProfit)} (${Math.round((estProfit / currentBid) * 100)}% Profit)</span>
+                </div>
+              </div>
+
+              <button class="btn btn-primary btn-full mt-2 btn-submit-bid" data-rfp-id="${rfp.id}" data-talent-id="${attachedTalent ? attachedTalent.id : ''}">
+                Submit Bid Proposal (${formatRupees(currentBid)})
+              </button>
+            </div>
+          `;
+        }).join('')}
       </div>
     `;
   }
@@ -1028,13 +1115,22 @@ window.StudioGame.UI.ActionsScreen = (function() {
 
   function renderCommissionTab(state) {
     const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
+    const formatFans = window.StudioGame.Systems.Talent.formatFans;
     const projectSystem = window.StudioGame.Systems.Projects;
     const genres = window.StudioGame.Data.Contracts?.genres || [];
-    const starterTalent = window.StudioGame.Data.Contracts?.starterTalent || [];
+    const talents = state.talent || [];
+    const signedStars = talents.filter(t => t.contractStatus === 'signed_player');
+    const availableTalents = signedStars.length > 0 ? signedStars : talents.slice(0, 15);
 
+    if (!commissionState.talentId || !talents.some(t => t.id === commissionState.talentId)) {
+      commissionState.talentId = availableTalents[0]?.id || talents[0]?.id;
+    }
+
+    const selectedTalent = talents.find(t => t.id === commissionState.talentId) || talents[0];
     const bill = projectSystem.calculateCostBill(state, {
       format: commissionState.format,
-      talent: starterTalent.find(t => t.id === commissionState.talentId) || starterTalent[0]
+      talentId: commissionState.talentId,
+      talent: selectedTalent
     });
 
     return `
@@ -1056,15 +1152,32 @@ window.StudioGame.UI.ActionsScreen = (function() {
         </div>
 
         <div class="form-group mt-2">
-          <label class="form-label">Attached Talent</label>
-          <select id="commTalent" class="form-input">
-            ${starterTalent.map(t => `<option value="${t.id}" ${commissionState.talentId === t.id ? 'selected' : ''}>${t.name} (Fee: ${formatRupees(t.fee)})</option>`).join('')}
+          <div class="flex items-center justify-between mb-1">
+            <label class="form-label mb-0 font-bold">Attached Talent / Star:</label>
+            <span class="text-xs highlight-gold">🔥 ${formatFans(selectedTalent.fans)} Fans &bull; ${selectedTalent.category || 'Star'}</span>
+          </div>
+          <select id="commTalent" class="form-input font-bold">
+            ${talents.map(t => {
+              const isSigned = t.contractStatus === 'signed_player';
+              return `<option value="${t.id}" ${commissionState.talentId === t.id ? 'selected' : ''}>
+                ${isSigned ? '⭐ [SIGNED 80% OFF] ' : ''}${t.name} (🔥 ${formatFans(t.fans)} &bull; ${t.category})
+              </option>`;
+            }).join('')}
           </select>
+          <div class="text-xs highlight-emerald mt-1">
+            🌟 Star Fame Multiplier: <strong>${bill.fameMultiplier}x Client Payout</strong>
+          </div>
         </div>
 
-        <div class="budget-total-line mt-3">
-          <span>Total Upfront Cost:</span>
-          <span class="highlight-gold font-mono font-bold">${formatRupees(bill.totalCost)}</span>
+        <div class="p-2 my-2 rounded" style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25);">
+          <div class="flex items-center justify-between text-xs">
+            <span>Total Upfront Cost: <strong class="font-mono">${formatRupees(bill.totalCost)}</strong></span>
+            <span>Projected Revenue: <strong class="highlight-emerald font-mono font-bold">${formatRupees(bill.projectedRevenue)}</strong></span>
+          </div>
+          <div class="text-xs mt-1 flex items-center justify-between">
+            <span class="text-muted">Studio Net Profit:</span>
+            <span class="highlight-gold font-mono font-bold text-sm">+${formatRupees(bill.profit || 0)}</span>
+          </div>
         </div>
 
         <button class="btn btn-primary btn-full mt-3" id="btnLaunchCommission" ${state.studio.cash < bill.totalCost ? 'disabled' : ''}>
@@ -1188,7 +1301,9 @@ window.StudioGame.UI.ActionsScreen = (function() {
 
     // Greenlight cinema button
     container.querySelector('#btnGreenlightCinema')?.addEventListener('click', () => {
-      const res = window.StudioGame.Systems.Projects.greenlightCinemaProject(state, {
+      const projectSystem = window.StudioGame.Systems.Projects;
+      const greenlightFn = projectSystem.greenlightCinemaProject || projectSystem.launchCinemaFeature;
+      const res = greenlightFn(state, {
         formatId: cinemaState.formatId,
         genreId: cinemaState.genreId,
         title: cinemaState.title,
@@ -1196,46 +1311,113 @@ window.StudioGame.UI.ActionsScreen = (function() {
         leadActressId: cinemaState.leadActressId
       });
 
-      if (res.success) {
+      if (res && res.success) {
         window.StudioGame.State.autosave();
         callbacks.onStateChange?.();
         window.StudioGame.App.showToast(`🎬 Production Greenlit: "${res.project.name}" on the floor!`);
         activeSubTab = 'pipeline';
         render(container, state, callbacks);
       } else {
-        window.StudioGame.App.showToast(`⚠️ ${res.error}`);
+        window.StudioGame.App.showToast(`⚠️ ${res ? res.error : 'Failed to greenlight production'}`);
       }
     });
 
-    // Bids slider & submit
-    container.querySelectorAll('.rfp-bid-slider').forEach(slider => {
-      slider.addEventListener('input', (e) => {
-        const id = slider.getAttribute('data-rfp-id');
-        const disp = container.querySelector(`#bidDisplay_${id}`);
-        if (disp) {
-          disp.textContent = window.StudioGame.Systems.Finance.formatRupees(parseInt(slider.value, 10));
-        }
+    // RFP Bids attached talent selector change
+    container.querySelectorAll('.rfp-talent-select').forEach(sel => {
+      sel.addEventListener('change', (e) => {
+        const rfpId = sel.getAttribute('data-rfp-id');
+        rfpAttachedTalents[rfpId] = e.target.value;
+        // Reset slider to default for new talent fame level
+        delete rfpBidValues[rfpId];
+        render(container, state, callbacks);
       });
     });
 
+    // Bids slider & dynamic display
+    container.querySelectorAll('.rfp-bid-slider').forEach(slider => {
+      slider.addEventListener('input', (e) => {
+        const id = slider.getAttribute('data-rfp-id');
+        const val = parseInt(slider.value, 10);
+        rfpBidValues[id] = val;
+
+        const disp = container.querySelector(`#bidDisplay_${id}`);
+        if (disp) disp.textContent = window.StudioGame.Systems.Finance.formatRupees(val);
+
+        const payoutDisp = container.querySelector(`#payoutDisplay_${id}`);
+        if (payoutDisp) payoutDisp.textContent = window.StudioGame.Systems.Finance.formatRupees(val);
+
+        const dep = Math.round(val * 0.22);
+        const depDisp = container.querySelector(`#depositDisplay_${id}`);
+        if (depDisp) depDisp.textContent = window.StudioGame.Systems.Finance.formatRupees(dep);
+
+        const prof = val - dep;
+        const profDisp = container.querySelector(`#profitDisplay_${id}`);
+        if (profDisp) profDisp.textContent = `+${window.StudioGame.Systems.Finance.formatRupees(prof)} (${Math.round((prof / val) * 100)}% Profit)`;
+
+        const submitBtn = container.querySelector(`.btn-submit-bid[data-rfp-id="${id}"]`);
+        if (submitBtn) submitBtn.textContent = `Submit Bid Proposal (${window.StudioGame.Systems.Finance.formatRupees(val)})`;
+      });
+    });
+
+    // Submit Bid Proposal
     container.querySelectorAll('.btn-submit-bid').forEach(btn => {
       btn.addEventListener('click', () => {
         const rfpId = btn.getAttribute('data-rfp-id');
         const slider = container.querySelector(`.rfp-bid-slider[data-rfp-id="${rfpId}"]`);
+        const talentSel = container.querySelector(`.rfp-talent-select[data-rfp-id="${rfpId}"]`);
         const bidAmt = slider ? parseInt(slider.value, 10) : 500000;
+        const talentId = talentSel ? talentSel.value : btn.getAttribute('data-talent-id');
 
-        const res = window.StudioGame.Systems.Projects.submitBid(state, rfpId, bidAmt);
-        if (res.success) {
+        const res = window.StudioGame.Systems.Projects.submitBid(state, rfpId, bidAmt, talentId);
+        if (res && (res.success || res.won)) {
           window.StudioGame.State.autosave();
           callbacks.onStateChange?.();
-          window.StudioGame.App.showToast(`🏆 Won RFP Contract: ${res.project.name}! Advance payment credited.`);
+          window.StudioGame.App.showToast(`🏆 Won RFP Contract: ${res.project.name}! Contracted payout of ${window.StudioGame.Systems.Finance.formatRupees(res.project.agreedPayout)}.`);
           activeSubTab = 'pipeline';
           render(container, state, callbacks);
+        } else if (res && res.error) {
+          window.StudioGame.App.showToast(`⚠️ ${res.error}`);
         } else {
-          window.StudioGame.App.showToast(`❌ Bid Lost to ${res.winner.name} (${window.StudioGame.Systems.Finance.formatRupees(res.winner.bid)})`);
+          const winnerName = res?.winner?.name || res?.winnerName || 'Rival Studio';
+          const winningBid = res?.winner?.bid || res?.winningBid || 0;
+          window.StudioGame.App.showToast(`❌ Bid Lost to ${winnerName} (${window.StudioGame.Systems.Finance.formatRupees(winningBid)})`);
           render(container, state, callbacks);
         }
       });
+    });
+
+    // Custom Commercial Shoot Controls
+    container.querySelector('#commFormat')?.addEventListener('change', (e) => {
+      commissionState.format = e.target.value;
+      render(container, state, callbacks);
+    });
+
+    container.querySelector('#commTalent')?.addEventListener('change', (e) => {
+      commissionState.talentId = e.target.value;
+      render(container, state, callbacks);
+    });
+
+    container.querySelector('#commName')?.addEventListener('input', (e) => {
+      commissionState.name = e.target.value;
+    });
+
+    container.querySelector('#btnLaunchCommission')?.addEventListener('click', () => {
+      const res = window.StudioGame.Systems.Projects.launchCustomProject(state, {
+        name: commissionState.name,
+        format: commissionState.format,
+        talentId: commissionState.talentId,
+        genreId: commissionState.genreId
+      });
+
+      if (res && res.success) {
+        window.StudioGame.State.autosave();
+        callbacks.onStateChange?.();
+        window.StudioGame.App.showToast(`📸 Commercial shoot launched: "${res.project.name}" on the floor!`);
+        activeSubTab = 'pipeline';
+        render(container, state, callbacks);
+      } else {
+        window.StudioGame.App.showToast(`⚠️ ${res ? res.error : 'Failed to launch shoot'}`);
+      }
     });
 
     // Personal Actions execution
@@ -1469,12 +1651,17 @@ window.StudioGame.UI.ActionsScreen = (function() {
 
                     ${isSigned ? `
                       <button class="btn btn-sm btn-emerald btn-select-star" data-star-id="${star.id}">
-                        Select
+                        Select (80% Off)
                       </button>
                     ` : `
-                      <button class="btn btn-sm btn-outline-gold btn-sign-contract-quick" data-star-id="${star.id}">
-                        + Sign 1-6 Mo Contract
-                      </button>
+                      <div class="flex gap-1">
+                        <button class="btn btn-sm btn-outline-gold btn-select-star" data-star-id="${star.id}" title="Cast as guest star at standard quote">
+                          Cast Quote
+                        </button>
+                        <button class="btn btn-sm btn-primary btn-sign-contract-quick" data-star-id="${star.id}" title="Sign exclusive 1-6 mo contract for 80% discount">
+                          + Sign (80% Off)
+                        </button>
+                      </div>
                     `}
                   </div>
                 `;

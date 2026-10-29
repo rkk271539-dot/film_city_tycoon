@@ -129,6 +129,7 @@ window.StudioGame.Systems.Talent = (function() {
     growth = Math.max(5000, growth);
     return {
       growth,
+      fanIncrease: growth,
       percentage: (pct * mult * 100).toFixed(1)
     };
   }

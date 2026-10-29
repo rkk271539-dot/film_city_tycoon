@@ -5738,3 +5738,551 @@ html, body {
   margin-bottom: 8px;
   display: block;
 }
+
+
+/* ==========================================================================
+   BANK & TREASURY UI STYLES (v1.05)
+   ========================================================================== */
+
+.bank-hero-ribbon {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 768px) {
+  .bank-hero-ribbon {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.bank-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.b-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.b-val {
+  font-size: 17px;
+  font-weight: 800;
+  margin: 3px 0;
+}
+
+.b-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.bank-application-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+}
+
+.bank-card-title {
+  font-size: 18px;
+  font-weight: 900;
+  margin: 6px 0 2px 0;
+}
+
+.bank-card-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.loan-type-selector-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+@media (min-width: 600px) {
+  .loan-type-selector-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.loan-type-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.loan-type-box:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--border-highlight);
+}
+
+.loan-type-box.active {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: var(--accent-amber);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
+}
+
+.type-icon {
+  font-size: 28px;
+}
+
+.type-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.type-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.type-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.type-rate {
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.tenure-pills-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tenure-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tenure-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+}
+
+.tenure-pill.active {
+  background: var(--accent-amber);
+  color: #000;
+  border-color: var(--accent-amber);
+  font-weight: 900;
+}
+
+.loan-projections-summary,
+.quick-contract-calc-box {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.proj-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   PERSONAL CLOUT & LIFESTYLE ACTIONS (v1.05)
+   ========================================================================== */
+
+.personal-clout-banner {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.12) 0%, rgba(245, 158, 11, 0.12) 100%);
+  border: 1px solid rgba(236, 72, 153, 0.35);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.clout-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+}
+
+.clout-icon {
+  font-size: 32px;
+}
+
+.clout-title {
+  font-size: 16px;
+  font-weight: 900;
+  color: #f472b6;
+  margin: 0;
+}
+
+.clout-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 2px 0 0 0;
+}
+
+.clout-cash-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.clout-cash-lbl {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.clout-cash-val {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.lifestyle-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 680px) {
+  .lifestyle-actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.lifestyle-action-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  transition: all 0.15s ease;
+}
+
+.lifestyle-action-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border-highlight);
+}
+
+.lifestyle-action-card.is-debt-card {
+  border-color: rgba(244, 63, 94, 0.35);
+  background: rgba(244, 63, 94, 0.06);
+}
+
+.act-icon {
+  font-size: 26px;
+}
+
+.act-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.act-meta strong {
+  font-size: 13px;
+  color: var(--text-main);
+}
+
+.act-meta span {
+  color: var(--text-muted);
+}
+
+.act-cost {
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.assets-showcase-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 680px) {
+  .assets-showcase-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.asset-item-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.asset-item-card.is-owned {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.asset-icon {
+  font-size: 28px;
+}
+
+.asset-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.asset-name {
+  font-size: 13px;
+  color: var(--text-main);
+}
+
+.asset-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.asset-cost {
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+/* ==========================================================================
+   CASTING & SIGNING MODAL POLISH
+   ========================================================================== */
+
+.is-empty-casting {
+  border: 2px dashed rgba(244, 63, 94, 0.35);
+  background: rgba(244, 63, 94, 0.04);
+}
+
+.casting-empty-icon {
+  font-size: 30px;
+}
+
+.casting-empty-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 2px 0 0 0;
+}
+
+.casting-modal-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 4px;
+}
+
+.casting-tab-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 14px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+}
+
+.casting-tab-btn:hover {
+  color: var(--text-main);
+}
+
+.casting-tab-btn.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--accent-amber);
+  border-bottom: 2px solid var(--accent-amber);
+}
+
+.quick-sign-star-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+}
+
+/* ==========================================================================
+   STUDIO INSIDE SCREEN & TALENT POACHING (v1.05)
+   ========================================================================== */
+
+.dossier-subtabs-nav {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+  overflow-x: auto;
+}
+
+.dossier-tab-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 14px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.dossier-tab-btn:hover {
+  color: var(--text-main);
+}
+
+.dossier-tab-btn.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--accent-amber);
+  border-bottom: 2px solid var(--accent-amber);
+}
+
+.poach-info-box {
+  background: rgba(244, 63, 94, 0.08);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.poach-icon {
+  font-size: 24px;
+}
+
+.rival-stars-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 600px) {
+  .rival-stars-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.rival-star-item-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.rival-star-item-card.is-poached {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.rival-star-avatar {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.rival-star-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.star-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn-outline-rose {
+  background: rgba(244, 63, 94, 0.08);
+  border: 1px solid rgba(244, 63, 94, 0.4);
+  color: #fb7185;
+  font-weight: 700;
+  transition: all 0.15s ease;
+}
+
+.btn-outline-rose:hover {
+  background: var(--accent-rose);
+  color: #fff;
+  border-color: var(--accent-rose);
+}
+
+.filmography-stats-box {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rival-contract-banner {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.contract-actions-group {
+  display: flex;
+  gap: 6px;
+}

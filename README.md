@@ -1,10 +1,32 @@
-# Film City Tycoon (v1.0 Complete Master Edition)
+# Film City Tycoon (v1.05 Master Edition)
 
 A deep, multi-turn studio management simulation where you and your partner build an Indian cinema empire from the ground up against rival studios, talent unicorn production houses, and Dalal Street market forces.
 
 ---
 
 ## 🌟 What's Included & Implemented
+
+### 🌟 New in v1.05 Fixes & Expansion
+- **Flexible 1–6 Month Contracts & Project Casting Requirement**:
+  - Sign talent on flexible **1 to 6-month contracts** with dynamic quote scaling (0.35x to 1.60x).
+  - Feature cinema productions strictly enforce casting from **active, signed studio talent**. Quick 1-6 month contract signing modal accessible directly from the casting picker.
+  - Dedicated **📜 Our Signed Stars** view with live contract countdown timers (`⏳ X Days Left`), loyalty indicators, and instant 3-month contract extensions.
+- **Imperial Reserve Bank & Corporate Treasury (Dedicated Bank Tab)**:
+  - **Commercial Term Loans**: Borrow up to 45% studio net worth at 9.0% p.a. with flexible 6–24 month tenures and automatic monthly EMI amortization.
+  - **Mezzanine Bridge Credit**: Rapid liquidity up to ₹5 Crores at 14.5% p.a.
+  - **7.5% APY Fixed Deposits**: Park liquid reserves into interest-bearing FDs with daily compounding and anytime premature liquidation.
+  - **Dynamic Credit Rating Engine**: Ranks from `AAA (Prime Sovereign)` to `Junk / Distressed` based on debt-to-equity ratios.
+- **Rival Studio Star Poaching & Overhauled Studio Inside Screen**:
+  - Completely redesigned **Studio Dossier Modal** with 4 interactive tabs: *⭐ Contracted Stars*, *🏛️ Financials & IP*, *🎟️ Theatrical Runs*, and *🤝 Co-Production*.
+  - **`⚡ Poach Star` Engine**: Steal exclusive stars from legacy studios and unicorns by paying 1.5x buyout compensation + upfront bonus, triggering attitude drops and trade headlines.
+- **Talent Interpersonal Actions & Relations**:
+  - Deepen relations with individual artistes through *Soho House Power Lunches*, *Luxury Cartier/Rolex Gifts*, *Veteran Mentorship Masterclasses*, *PR Image Makeovers*, and *Tabloid Scandal Hush Money*.
+- **Lifestyle & Personal Actions**:
+  - Rich personal spending outside studio ops: *Bandra Bandstand Penthouse*, *Juhu Beach Bungalow*, *Alibaug Waterfront Villa*, *Mercedes-Maybach S-Class*, *Rolls-Royce Phantom*, *Lamborghini Urus*, *Page 3 High-Society Galas*, *OTT Streamer Power Dinners*, *European Vacations with Wife*, and *Harry Winston Diamond Solitaires*.
+- **Diverse Dynamic Trade News with Real Gameplay Impacts**:
+  - Income Tax raids fining rival studios, Cannes standing ovations boosting net worth, Dalal Street circuit halts, and streaming platform bidding wars.
+
+---
 
 ### 1. 🌟 Full Talent Roster & Star System (v0.4 & v0.5)
 - **300+ Indian Cinema Artistes (152 Actresses & 152 Actors)**:
@@ -124,6 +146,7 @@ film_city_tycoon/
     │   ├── studiosData.js   # 25 Legacy Indian Studios & 10 Dynamic Unicorn Studios
     │   └── marketData.js    # Dalal Street listed companies, tickers & metrics
     ├── systems/
+    │   ├── bank.js          # Imperial Reserve Bank loans, FDs, credit rating & EMIs
     │   ├── clock.js         # Turn clock, character aging & daily system ticks
     │   ├── finance.js       # Rupee formatting (Crores & Lakhs) & overhead calculations
     │   ├── wife.js          # Wife autonomous career engine & romance
@@ -137,7 +160,8 @@ film_city_tycoon/
         ├── dashboard.js     # Home dashboard screen
         ├── startScreen.js   # Character creator & studio setup
         ├── wifeScreen.js    # Comprehensive wife full page & career center
-        ├── actionsScreen.js # Cinema production, client bids, pipeline & upgrades
+        ├── bankScreen.js    # Bank loan calculator, active loans & fixed deposit treasury
+        ├── actionsScreen.js # Cinema production (contract gated), personal lifestyle, pipeline & upgrades
         ├── talentScreen.js  # Talent roster, filters, star cards & negotiation drawer
         ├── studiosScreen.js # 25 Legacy studios, 10 Unicorns & box office leaderboard
         ├── marketScreen.js  # Dalal Street trading, technical charts, portfolio & IPO
@@ -177,6 +201,7 @@ film_city_tycoon/
 | **0.8** | **Dynamic Unicorn Studios (10 Slots), Collapses & Trade News** | **Complete** ✅ |
 | **0.9** | **Dalal Street Stock Market, -8% to +8% Circuits & Studio IPO** | **Complete** ✅ |
 | **1.0** | **Complete Playable Empire, Hotel Scandals & Annual Awards Gala** | **Complete** ✅ |
+| **1.05** | **Flexible 1–6m Contracts, Bank & Treasury, Star Poaching, Personal Actions** | **Complete** ✅ |
 
 ---
 

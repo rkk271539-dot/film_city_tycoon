@@ -107,6 +107,11 @@ window.StudioGame.Systems.Clock = (function() {
         window.StudioGame.Systems.News.dailyTick(state);
       }
 
+      // 2h. Bank Loans, EMIs & Fixed Deposit Interest tick
+      if (window.StudioGame.Systems.Bank) {
+        window.StudioGame.Systems.Bank.dailyTick(state);
+      }
+
       // 3. Ambient Industry Gossip / News roll
       if (Math.random() < 0.10 && window.StudioGame.Data.Events) {
         const rumors = window.StudioGame.Data.Events.dailyRumors;

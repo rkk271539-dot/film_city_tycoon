@@ -132,6 +132,9 @@ window.StudioGame.State = (function() {
     if (window.StudioGame.Systems.News) {
       window.StudioGame.Systems.News.ensureNewsState(state);
     }
+    if (window.StudioGame.Systems.Bank) {
+      window.StudioGame.Systems.Bank.ensureBankState(state);
+    }
 
     return state;
   }
@@ -349,6 +352,9 @@ window.StudioGame.State = (function() {
     }
     if (window.StudioGame.Systems.News) {
       window.StudioGame.Systems.News.ensureNewsState(rawState);
+    }
+    if (window.StudioGame.Systems.Bank) {
+      window.StudioGame.Systems.Bank.ensureBankState(rawState);
     }
     rawState.feed = rawState.feed || [];
     rawState.history = rawState.history || [];

@@ -1,52 +1,63 @@
 /**
  * Talent Roster UI Screen
- * Browsing, filtering, detailed star cards, negotiation engine, and debt bailouts.
+ * Browsing, filtering, detailed star cards, 1-6 month contract negotiation,
+ * interpersonal actions & relations, debt bailouts, and active signed studio roster.
  */
 
 window.StudioGame = window.StudioGame || {};
 window.StudioGame.UI = window.StudioGame.UI || {};
 
 window.StudioGame.UI.TalentScreen = (function() {
-  let activeFilterCategory = 'all';
-  let activeFilterGender = 'all';
-  let activeFilterImage = 'all';
-  let activeFilterStatus = 'all'; // 'all', 'free_agent', 'signed', 'in_debt'
-  let activeSortBy = 'fans_desc';
+  let activeViewMode = 'roster'; // 'roster' | 'signed'
   let searchQuery = '';
+  let activeFilterGender = 'all'; // 'all', 'female', 'male'
+  let activeFilterCategory = 'all'; // 'all', 'superstar', 'a_lister', 'acclaimed', 'rising_star', 'model', 'newcomer'
+  let activeFilterStatus = 'all'; // 'all', 'free_agent', 'signed', 'in_debt'
+  let activeFilterImage = 'all'; // 'all', 'wholesome', 'romantic', 'bold', 'unrestricted'
+  let activeSortBy = 'fans_desc'; // 'fans_desc', 'acting_desc', 'glamour_desc', 'fee_asc', 'fee_desc', 'net_worth_desc', 'debt_desc'
   let currentPage = 1;
-  const ITEMS_PER_PAGE = 24;
+  const ITEMS_PER_PAGE = 18;
 
   function render(container, state, callbacks = {}) {
+    if (!container || !state) return;
     window.StudioGame.Systems.Talent.ensureTalentState(state);
 
     const talents = state.talent || [];
-    const signedCount = talents.filter(t => t.contractStatus === 'signed_player').length;
-    const debtCount = talents.filter(t => t.debt > 0).length;
+    const signedStars = window.StudioGame.Systems.Talent.getActiveSignedTalents(state);
+    const signedCount = signedStars.length;
+    const debtCount = talents.filter(t => t.debt && t.debt > 0).length;
 
     // Filter talents
     let filtered = talents.filter(t => {
-      if (activeFilterCategory !== 'all') {
-        if (activeFilterCategory === 'superstar' && !['Megastar', 'Superstar'].includes(t.category)) return false;
-        if (activeFilterCategory === 'a_lister' && t.category !== 'A-Lister') return false;
-        if (activeFilterCategory === 'acclaimed' && t.category !== 'Acclaimed') return false;
-        if (activeFilterCategory === 'rising_star' && t.category !== 'Rising Star') return false;
-        if (activeFilterCategory === 'model' && t.category !== 'Commercial Model') return false;
-        if (activeFilterCategory === 'newcomer' && t.category !== 'Newcomer') return false;
+      // If signed tab is active, only show signed stars
+      if (activeViewMode === 'signed') {
+        if (t.contractStatus !== 'signed_player' || t.contractDaysRemaining <= 0) return false;
       }
 
+      // Gender filter
       if (activeFilterGender !== 'all' && t.gender !== activeFilterGender) return false;
-      if (activeFilterImage !== 'all' && t.pureImage !== activeFilterImage) return false;
 
+      // Category filter
+      if (activeFilterCategory !== 'all') {
+        const catSlug = (t.category || '').toLowerCase().replace(/[\s-]/g, '_');
+        if (!catSlug.includes(activeFilterCategory)) return false;
+      }
+
+      // Status filter
       if (activeFilterStatus === 'free_agent' && t.contractStatus !== 'free_agent') return false;
       if (activeFilterStatus === 'signed' && t.contractStatus !== 'signed_player') return false;
       if (activeFilterStatus === 'in_debt' && (!t.debt || t.debt <= 0)) return false;
 
+      // Screen image filter
+      if (activeFilterImage !== 'all' && t.pureImage !== activeFilterImage) return false;
+
+      // Search Query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchesName = t.name.toLowerCase().includes(q);
-        const matchesCat = t.category.toLowerCase().includes(q);
+        const matchesCategory = (t.category || '').toLowerCase().includes(q);
         const matchesBio = (t.bio || '').toLowerCase().includes(q);
-        if (!matchesName && !matchesCat && !matchesBio) return false;
+        if (!matchesName && !matchesCategory && !matchesBio) return false;
       }
 
       return true;
@@ -79,7 +90,7 @@ window.StudioGame.UI.TalentScreen = (function() {
             </div>
             <div class="top-user-meta">
               <div class="top-player-name">${state.player.name}</div>
-              <div class="top-studio-tag">${state.studio.name} &bull; Talent Center</div>
+              <div class="top-studio-tag">${state.studio.name} &bull; Talent Center (${signedCount} Signed)</div>
             </div>
           </div>
 
@@ -126,12 +137,12 @@ window.StudioGame.UI.TalentScreen = (function() {
             </div>
             <div class="summary-mini-card">
               <span class="mini-label">Our Signed Roster</span>
-              <span class="mini-val highlight-emerald">${signedCount} Stars</span>
+              <span class="mini-val highlight-emerald font-bold">${signedCount} Stars</span>
               <span class="mini-sub">Exclusive Retention (80% Off)</span>
             </div>
             <div class="summary-mini-card">
               <span class="mini-label">Artistes in Debt</span>
-              <span class="mini-val highlight-rose">${debtCount} Talents</span>
+              <span class="mini-val highlight-rose font-bold">${debtCount} Talents</span>
               <span class="mini-sub">Bailout for Deep Loyalty</span>
             </div>
             <div class="summary-mini-card">
@@ -139,6 +150,16 @@ window.StudioGame.UI.TalentScreen = (function() {
               <span class="mini-val font-mono">${window.StudioGame.Systems.Finance.formatRupees(state.studio.cash)}</span>
               <span class="mini-sub">Available Capital</span>
             </div>
+          </div>
+
+          <!-- Roster View Mode Tabs -->
+          <div class="talent-view-tabs my-2">
+            <button class="studios-tab-btn ${activeViewMode === 'roster' ? 'active' : ''}" data-view-mode="roster">
+              🌐 Artiste Directory (${talents.length})
+            </button>
+            <button class="studios-tab-btn ${activeViewMode === 'signed' ? 'active' : ''}" data-view-mode="signed">
+              📜 Our Signed Stars (${signedCount})
+            </button>
           </div>
 
           <!-- Filter & Search Toolbar -->
@@ -164,7 +185,7 @@ window.StudioGame.UI.TalentScreen = (function() {
             </div>
 
             <!-- Filter Pills -->
-            <div class="filter-pills-row">
+            <div class="filter-pills-row mt-2">
               <div class="pill-group">
                 <span class="pill-group-title">Gender:</span>
                 <button class="filter-pill ${activeFilterGender === 'all' ? 'active' : ''}" data-filter-gender="all">All</button>
@@ -183,13 +204,15 @@ window.StudioGame.UI.TalentScreen = (function() {
                 <button class="filter-pill ${activeFilterCategory === 'newcomer' ? 'active' : ''}" data-filter-category="newcomer">🌱 Newcomers</button>
               </div>
 
-              <div class="pill-group">
-                <span class="pill-group-title">Status:</span>
-                <button class="filter-pill ${activeFilterStatus === 'all' ? 'active' : ''}" data-filter-status="all">All</button>
-                <button class="filter-pill ${activeFilterStatus === 'free_agent' ? 'active' : ''}" data-filter-status="free_agent">🆓 Free Agents</button>
-                <button class="filter-pill ${activeFilterStatus === 'signed' ? 'active' : ''}" data-filter-status="signed">📜 Signed To Us</button>
-                <button class="filter-pill ${activeFilterStatus === 'in_debt' ? 'active' : ''}" data-filter-status="in_debt">💸 In Debt</button>
-              </div>
+              ${activeViewMode === 'roster' ? `
+                <div class="pill-group">
+                  <span class="pill-group-title">Status:</span>
+                  <button class="filter-pill ${activeFilterStatus === 'all' ? 'active' : ''}" data-filter-status="all">All</button>
+                  <button class="filter-pill ${activeFilterStatus === 'free_agent' ? 'active' : ''}" data-filter-status="free_agent">🆓 Free Agents</button>
+                  <button class="filter-pill ${activeFilterStatus === 'signed' ? 'active' : ''}" data-filter-status="signed">📜 Signed To Us</button>
+                  <button class="filter-pill ${activeFilterStatus === 'in_debt' ? 'active' : ''}" data-filter-status="in_debt">💸 In Debt</button>
+                </div>
+              ` : ''}
 
               <div class="pill-group">
                 <span class="pill-group-title">Image:</span>
@@ -209,7 +232,13 @@ window.StudioGame.UI.TalentScreen = (function() {
 
           <!-- Talent Cards Grid -->
           <div class="talent-cards-grid">
-            ${pageItems.map(talent => renderTalentCard(talent, state)).join('')}
+            ${pageItems.length > 0 ? pageItems.map(talent => renderTalentCard(talent, state)).join('') : `
+              <div class="empty-results-box text-center p-4">
+                <span class="empty-icon">🌟</span>
+                <h4>No Artistes Found</h4>
+                <p>${activeViewMode === 'signed' ? 'You have not signed any exclusive talent yet. Switch to Artiste Directory to negotiate a 1-6 month contract!' : 'No talents match your current filters.'}</p>
+              </div>
+            `}
           </div>
 
           <!-- Pagination Controls -->
@@ -229,6 +258,7 @@ window.StudioGame.UI.TalentScreen = (function() {
 
   function renderTalentCard(t, state) {
     const isSignedToUs = t.contractStatus === 'signed_player';
+    const isSignedToRival = t.contractStatus === 'signed_rival';
     const hasDebt = t.debt && t.debt > 0;
 
     let imageBadgeClass = 'badge-blue';
@@ -267,7 +297,8 @@ window.StudioGame.UI.TalentScreen = (function() {
               <span class="badge ${getCategoryBadgeClass(t.category)}">${t.category}</span>
               <span class="badge ${imageBadgeClass}">${imageBadgeText}</span>
               ${hasDebt ? `<span class="badge badge-amber font-mono">💸 Debt: ${window.StudioGame.Systems.Finance.formatRupees(t.debt)}</span>` : ''}
-              ${isSignedToUs ? '<span class="badge badge-emerald">📜 Signed (80% Off)</span>' : ''}
+              ${isSignedToUs ? `<span class="badge badge-emerald">⭐ Signed (${t.contractDaysRemaining}D Left)</span>` : ''}
+              ${isSignedToRival ? `<span class="badge badge-indigo">🔒 Locked (${t.contractWith})</span>` : ''}
             </div>
 
             <div class="talent-fans-line">
@@ -275,48 +306,45 @@ window.StudioGame.UI.TalentScreen = (function() {
               <span class="fan-count">${window.StudioGame.Systems.Talent.formatFans(t.fans)}</span>
               <span class="fan-divider">&bull;</span>
               <span class="rep-label">Rep: <strong>${t.reputation}/100</strong></span>
+              <span class="fan-divider">&bull;</span>
+              <span class="rep-label">Loyalty: <strong>${t.loyalty || 50}%</strong></span>
             </div>
           </div>
         </div>
 
-        <p class="talent-bio-snippet">${escapeHtml(t.bio || '')}</p>
+        <p class="talent-bio-snippet">${escapeHtml(t.bio || 'Rising talent making waves in the Hindi film industry.')}</p>
 
-        <!-- Stats Meters -->
         <div class="talent-stats-row">
           <div class="stat-pill-bar">
-            <span class="stat-pill-label">Acting</span>
+            <span class="stat-pill-label">Acting: ${t.acting}</span>
             <div class="stat-progress-bg">
               <div class="stat-progress-fill fill-cyan" style="width: ${t.acting}%"></div>
             </div>
-            <span class="stat-pill-num">${t.acting}</span>
           </div>
 
           <div class="stat-pill-bar">
-            <span class="stat-pill-label">Glamour</span>
+            <span class="stat-pill-label">Glamour: ${t.glamour}</span>
             <div class="stat-progress-bg">
               <div class="stat-progress-fill fill-pink" style="width: ${t.glamour}%"></div>
             </div>
-            <span class="stat-pill-num">${t.glamour}</span>
           </div>
 
           <div class="stat-pill-bar">
-            <span class="stat-pill-label">Fitness</span>
+            <span class="stat-pill-label">Fitness: ${t.fitness}</span>
             <div class="stat-progress-bg">
               <div class="stat-progress-fill fill-emerald" style="width: ${t.fitness}%"></div>
             </div>
-            <span class="stat-pill-num">${t.fitness}</span>
           </div>
         </div>
 
-        <!-- Footer / Pricing & Actions -->
         <div class="talent-card-footer">
           <div class="talent-fee-box">
-            <span class="fee-label">Standard Quote:</span>
-            <span class="fee-amount highlight-gold font-mono">${window.StudioGame.Systems.Finance.formatRupees(t.averageFee)}</span>
+            <span class="fee-lbl">Per Film Quote</span>
+            <span class="fee-val highlight-gold font-mono">${window.StudioGame.Systems.Finance.formatRupees(t.averageFee)}</span>
           </div>
 
-          <button class="btn btn-sm ${isSignedToUs ? 'btn-secondary' : 'btn-primary'} btn-view-talent" data-talent-id="${t.id}">
-            ${isSignedToUs ? 'Manage Contract' : 'View & Hire'}
+          <button class="btn btn-sm ${isSignedToUs ? 'btn-emerald' : 'btn-primary'} btn-view-dossier" data-talent-id="${t.id}">
+            ${isSignedToUs ? 'Manage Contract' : 'Dossier & Sign'}
           </button>
         </div>
       </div>
@@ -325,8 +353,7 @@ window.StudioGame.UI.TalentScreen = (function() {
 
   function getCategoryBadgeClass(category) {
     switch (category) {
-      case 'Megastar': return 'badge-gold';
-      case 'Superstar': return 'badge-amber';
+      case 'Superstar': return 'badge-gold';
       case 'A-Lister': return 'badge-blue';
       case 'Acclaimed': return 'badge-purple';
       case 'Rising Star': return 'badge-emerald';
@@ -344,6 +371,15 @@ window.StudioGame.UI.TalentScreen = (function() {
 
     container.querySelector('#btnOpenSaveManager')?.addEventListener('click', () => {
       window.StudioGame.UI.SaveModal.open(state, callbacks.onStateChange);
+    });
+
+    // View mode subtabs
+    container.querySelectorAll('[data-view-mode]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeViewMode = btn.getAttribute('data-view-mode');
+        currentPage = 1;
+        render(container, state, callbacks);
+      });
     });
 
     // Search input
@@ -428,23 +464,19 @@ window.StudioGame.UI.TalentScreen = (function() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
-    // Modal triggers
-    container.querySelectorAll('.btn-view-talent').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+    // Open Dossier Modal
+    container.querySelectorAll('.btn-view-dossier, .talent-roster-card').forEach(el => {
+      el.addEventListener('click', (e) => {
         e.stopPropagation();
-        const talentId = btn.getAttribute('data-talent-id');
-        openTalentDossierModal(talentId, state, callbacks);
-      });
-    });
-
-    container.querySelectorAll('.talent-roster-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const talentId = card.getAttribute('data-talent-id');
+        const talentId = el.getAttribute('data-talent-id');
         openTalentDossierModal(talentId, state, callbacks);
       });
     });
   }
 
+  /**
+   * Comprehensive Star Dossier & Negotiation/Interactions Modal
+   */
   function openTalentDossierModal(talentId, state, callbacks) {
     const existing = document.getElementById('talentDossierModal');
     if (existing) existing.remove();
@@ -453,8 +485,8 @@ window.StudioGame.UI.TalentScreen = (function() {
     if (!talent) return;
 
     const isSignedToUs = talent.contractStatus === 'signed_player';
-    const hasDebt = talent.debt && talent.debt > 0;
-    const canAffordDebt = state.studio.cash >= (talent.debt || 0);
+    const isSignedToRival = talent.contractStatus === 'signed_rival';
+    const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
 
     const avatarUrl = window.StudioGame.Face.generate({
       gender: talent.gender,
@@ -476,162 +508,194 @@ window.StudioGame.UI.TalentScreen = (function() {
         </div>
 
         <div class="modal-body talent-dossier-body">
-          <!-- Star Banner -->
+          <!-- Hero Section -->
           <div class="dossier-hero-row">
             <div class="dossier-avatar-col">
               <img src="${avatarUrl}" alt="${escapeHtml(talent.name)}" class="dossier-avatar-img" />
             </div>
 
-            <div class="dossier-main-intel">
-              <div class="dossier-headline">
-                <span class="dossier-age">${talent.age} Years Old &bull; ${talent.gender === 'female' ? 'Actress' : 'Actor'}</span>
-                <span class="dossier-fans-badge">🔥 ${window.StudioGame.Systems.Talent.formatFans(talent.fans)}</span>
-              </div>
-
-              <p class="dossier-bio-full">${escapeHtml(talent.bio || '')}</p>
-
-              <div class="dossier-tags-cluster">
-                <span class="dossier-tag">Screen Image: <strong>${formatPureImageLabel(talent.pureImage)}</strong></span>
-                <span class="dossier-tag">Marital Status: <strong>${talent.maritalStatus}${talent.spouse ? ` (${escapeHtml(talent.spouse)})` : ''}</strong></span>
-                <span class="dossier-tag">Net Worth: <strong class="font-mono">${window.StudioGame.Systems.Finance.formatRupees(talent.netWorth)}</strong></span>
-                <span class="dossier-tag">Standard Fee: <strong class="highlight-gold font-mono">${window.StudioGame.Systems.Finance.formatRupees(talent.averageFee)}</strong></span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Debt Alert & Bailout Box -->
-          ${hasDebt ? `
-            <div class="debt-bailout-alert-box">
-              <div class="debt-alert-left">
-                <span class="debt-warning-icon">💸</span>
-                <div class="debt-warning-text">
-                  <div class="debt-warning-title font-mono">Personal Debt Burden: ${window.StudioGame.Systems.Finance.formatRupees(talent.debt)}</div>
-                  <div class="debt-warning-desc">
-                    Talent is under intense creditor pressure. Settle their debt from studio funds to earn <strong>+45 Loyalty</strong> and a <strong>35% permanent discount</strong> on all future acting quotes!
-                  </div>
+            <div class="dossier-meta-col">
+              <div class="dossier-key-stats">
+                <div class="meta-item">
+                  <span class="meta-lbl">Age & Gender</span>
+                  <span class="meta-val">${talent.age} Years &bull; ${talent.gender === 'female' ? 'Female' : 'Male'}</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-lbl">Fan Following</span>
+                  <span class="meta-val highlight-amber font-mono">${window.StudioGame.Systems.Talent.formatFans(talent.fans)}</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-lbl">Personal Net Worth</span>
+                  <span class="meta-val highlight-emerald font-mono">${formatRupees(talent.netWorth)}</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-lbl">Average Film Fee</span>
+                  <span class="meta-val highlight-gold font-mono">${formatRupees(talent.averageFee)}</span>
                 </div>
               </div>
-              <button class="btn btn-sm btn-primary" id="btnBailoutDebt" ${!canAffordDebt ? 'disabled' : ''}>
-                ${canAffordDebt ? `Bailout (${window.StudioGame.Systems.Finance.formatRupees(talent.debt)})` : 'Insufficient Cash'}
-              </button>
-            </div>
-          ` : ''}
 
-          <!-- Deep Metrics Grid -->
-          <div class="metrics-quad-grid">
-            <div class="metric-quad-card">
-              <div class="quad-label">Acting Prowess</div>
-              <div class="quad-val highlight-cyan">${talent.acting}/100</div>
-              <div class="quad-bar"><div class="quad-fill fill-cyan" style="width: ${talent.acting}%"></div></div>
-            </div>
-
-            <div class="metric-quad-card">
-              <div class="quad-label">Glamour & Beauty</div>
-              <div class="quad-val highlight-pink">${talent.glamour}/100</div>
-              <div class="quad-bar"><div class="quad-fill fill-pink" style="width: ${talent.glamour}%"></div></div>
-            </div>
-
-            <div class="metric-quad-card">
-              <div class="quad-label">Physique & Fitness</div>
-              <div class="quad-val highlight-emerald">${talent.fitness}/100</div>
-              <div class="quad-bar"><div class="quad-fill fill-emerald" style="width: ${talent.fitness}%"></div></div>
-            </div>
-
-            <div class="metric-quad-card">
-              <div class="quad-label">Ego & Demands</div>
-              <div class="quad-val highlight-amber">${talent.ego}/100</div>
-              <div class="quad-bar"><div class="quad-fill fill-amber" style="width: ${talent.ego}%"></div></div>
+              <!-- Badges Strip -->
+              <div class="dossier-badges-strip">
+                <span class="badge badge-purple">Screen Image: ${talent.pureImage.toUpperCase()}</span>
+                <span class="badge badge-blue">Marital: ${talent.maritalStatus || 'Single'} ${talent.spouse ? `(${talent.spouse})` : ''}</span>
+                ${talent.debt > 0 ? `<span class="badge badge-rose font-mono">⚠️ Outstanding Debt: ${formatRupees(talent.debt)}</span>` : '<span class="badge badge-emerald">Debt Free</span>'}
+              </div>
             </div>
           </div>
 
-          <!-- Secondary Metrics -->
-          <div class="meta-strip-row">
+          <!-- Attributes Strip -->
+          <div class="dossier-attributes-strip">
+            <div class="strip-item">
+              <span class="strip-lbl">Acting Mastery</span>
+              <span class="strip-val font-mono">${talent.acting}/100</span>
+            </div>
+            <div class="strip-item">
+              <span class="strip-lbl">Glamour / Beauty</span>
+              <span class="strip-val font-mono">${talent.glamour}/100</span>
+            </div>
+            <div class="strip-item">
+              <span class="strip-lbl">Physical Fitness</span>
+              <span class="strip-val font-mono">${talent.fitness}/100</span>
+            </div>
+            <div class="strip-item">
+              <span class="strip-lbl">Industry Ego</span>
+              <span class="strip-val font-mono">${talent.ego}/100</span>
+            </div>
             <div class="strip-item">
               <span class="strip-lbl">Studio Loyalty</span>
-              <span class="strip-val">${talent.loyalty || 50}/100</span>
+              <span class="strip-val font-mono highlight-gold">${talent.loyalty || 50}/100</span>
             </div>
             <div class="strip-item">
-              <span class="strip-lbl">Scandal Risk</span>
-              <span class="strip-val">${talent.scandalRisk || 20}%</span>
-            </div>
-            <div class="strip-item">
-              <span class="strip-lbl">Chemistry Pairs</span>
-              <span class="strip-val">${(talent.chemistryPairs && talent.chemistryPairs.length > 0) ? talent.chemistryPairs.join(', ') : 'Versatile with all'}</span>
-            </div>
-            <div class="strip-item">
-              <span class="strip-lbl">Contract Status</span>
-              <span class="strip-val ${isSignedToUs ? 'highlight-emerald' : ''}">${formatContractStatus(talent)}</span>
+              <span class="strip-lbl">Relationship Clout</span>
+              <span class="strip-val font-mono highlight-cyan">${talent.relationship || 40}/100</span>
             </div>
           </div>
 
-          <!-- Filmography -->
+          <!-- Section: Interpersonal Actions & Relations -->
           <div class="dossier-section-box">
-            <h4 class="section-box-title">Dynamic Filmography & Box Office Verdicts</h4>
-            ${(talent.pastTopFilms && talent.pastTopFilms.length > 0) ? `
-              <div class="filmography-list">
-                ${talent.pastTopFilms.map(film => `
-                  <div class="filmography-item">
-                    <span class="film-year">${film.year || 2025}</span>
-                    <span class="film-title">${escapeHtml(film.title)}</span>
-                    <span class="film-verdict badge ${getVerdictBadgeClass(film.verdict)}">${film.verdict}</span>
-                  </div>
-                `).join('')}
+            <h4 class="section-box-title">🤝 Interpersonal Relations & Clout Actions</h4>
+            <div class="lifestyle-actions-grid">
+              <div class="lifestyle-action-card">
+                <span class="act-icon">☕</span>
+                <div class="act-meta">
+                  <strong>Private Power Lunch at Soho House</strong>
+                  <span>Boosts loyalty & mutual friendship (+12 Rel).</span>
+                  <span class="act-cost highlight-gold font-mono">₹50,000</span>
+                </div>
+                <button class="btn btn-sm btn-outline-gold btn-talent-action" data-action="lunch">Host Lunch</button>
               </div>
-            ` : '<p class="empty-dossier-note text-muted">Aspiring newcomer without major studio releases yet.</p>'}
+
+              <div class="lifestyle-action-card">
+                <span class="act-icon">🎁</span>
+                <div class="act-meta">
+                  <strong>Luxury Designer Timepiece & Hamper</strong>
+                  <span>Bespoke Cartier / Rolex gift (+20 Rel, +18 Loyalty).</span>
+                  <span class="act-cost highlight-gold font-mono">₹3.0 Lakh</span>
+                </div>
+                <button class="btn btn-sm btn-outline-gold btn-talent-action" data-action="gift">Send Gift</button>
+              </div>
+
+              <div class="lifestyle-action-card">
+                <span class="act-icon">🎭</span>
+                <div class="act-meta">
+                  <strong>Method Acting Masterclass</strong>
+                  <span>Professional coach sponsorship (+2 Acting, +2 Glamour).</span>
+                  <span class="act-cost highlight-gold font-mono">₹5.0 Lakh</span>
+                </div>
+                <button class="btn btn-sm btn-outline-gold btn-talent-action" data-action="mentorship">Enroll</button>
+              </div>
+
+              <div class="lifestyle-action-card">
+                <span class="act-icon">✨</span>
+                <div class="act-meta">
+                  <strong>PR Image Makeover Campaign</strong>
+                  <span>Transform screen persona & gain 10% new fan surge.</span>
+                  <span class="act-cost highlight-gold font-mono">₹10.0 Lakh</span>
+                </div>
+                <button class="btn btn-sm btn-outline-gold btn-talent-action" data-action="makeover">Revamp Image</button>
+              </div>
+
+              ${talent.debt > 0 ? `
+                <div class="lifestyle-action-card is-debt-card">
+                  <span class="act-icon">💸</span>
+                  <div class="act-meta">
+                    <strong>Bailout Outstanding Debt</strong>
+                    <span>Pay off ${formatRupees(talent.debt)} for profound loyalty and 35% fee discount.</span>
+                    <span class="act-cost highlight-rose font-mono">${formatRupees(talent.debt)}</span>
+                  </div>
+                  <button class="btn btn-sm btn-emerald" id="btnBailoutDebt">Bailout Debt</button>
+                </div>
+              ` : ''}
+            </div>
           </div>
 
-          <!-- Interactive Negotiation Section -->
-          <div class="negotiation-drawer-box" id="negotiationDrawerBox">
+          <!-- Contract Status & Flexible Negotiation -->
+          <div class="negotiation-drawer-box mt-3" id="negotiationDrawerBox">
             ${isSignedToUs ? `
               <div class="active-contract-banner">
                 <div class="active-contract-info">
                   <span class="active-icon">📜</span>
                   <div>
                     <div class="active-title">Signed Exclusive to ${state.studio.name}</div>
-                    <div class="active-meta">${talent.contractDaysRemaining} days remaining on studio contract. Backend profit share: ${talent.contractTerms?.profitShare || 0}%.</div>
+                    <div class="active-meta font-mono">
+                      ⏳ ${talent.contractDaysRemaining} Days Remaining &bull; 80% Production Discount &bull; ${talent.contractTerms?.profitShare || 0}% Profit Share
+                    </div>
                   </div>
                 </div>
-                <button class="btn btn-sm btn-outline-danger" id="btnReleaseContract">Release Contract</button>
+                <div class="contract-actions-group">
+                  <button class="btn btn-sm btn-primary" id="btnOpenExtendModal">Extend Contract</button>
+                  <button class="btn btn-sm btn-outline-danger" id="btnReleaseContract">Release Early</button>
+                </div>
+              </div>
+            ` : (isSignedToRival ? `
+              <div class="rival-contract-banner">
+                <span class="active-icon">🔒</span>
+                <div>
+                  <strong>Exclusive Contract with ${talent.contractWith}</strong>
+                  <p class="text-xs text-muted mb-0">This artiste is locked to ${talent.contractWith}. Visit the <strong>Studios Screen</strong> to initiate a high-value Poaching buyout offer!</p>
+                </div>
               </div>
             ` : `
               <div class="negotiation-form">
-                <h4 class="negotiation-form-title">🤝 Negotiate Studio Contract</h4>
-                <p class="negotiation-form-sub">Pitch an exclusive retention contract to secure ${talent.name} for upcoming films and commercials at 80% discount.</p>
+                <h4 class="negotiation-form-title">🤝 Negotiate Studio Contract (1 to 6 Months)</h4>
+                <p class="negotiation-form-sub">Pitch an exclusive retention contract to secure ${talent.name} for upcoming films at an 80% production discount.</p>
 
                 <div class="negotiation-inputs-grid">
                   <div class="form-group">
                     <label class="form-label">Contract Duration</label>
                     <select id="negMonths" class="form-input">
-                      <option value="6">6 Months Retention</option>
-                      <option value="12" selected>12 Months (1 Year)</option>
-                      <option value="24">24 Months (2 Years)</option>
-                      <option value="36">36 Months (3 Years Exclusive)</option>
+                      <option value="1">1 Month (30 Days Retention)</option>
+                      <option value="2">2 Months (60 Days Retention)</option>
+                      <option value="3" selected>3 Months (90 Days - Standard)</option>
+                      <option value="4">4 Months (120 Days Retention)</option>
+                      <option value="5">5 Months (150 Days Retention)</option>
+                      <option value="6">6 Months (180 Days Exclusive)</option>
                     </select>
                   </div>
 
                   <div class="form-group">
                     <label class="form-label">Screen Intimacy Clause</label>
                     <select id="negIntimacy" class="form-input">
-                      <option value="strict_wholesome" ${talent.pureImage === 'wholesome' ? 'selected' : ''}>Strict Wholesome (No Intimacy / No Kissing)</option>
+                      <option value="strict_wholesome" ${talent.pureImage === 'wholesome' ? 'selected' : ''}>Strict Wholesome (No Kissing / Intimacy)</option>
                       <option value="standard" ${talent.pureImage === 'romantic' ? 'selected' : ''}>Standard Cinematic Romance</option>
                       <option value="bold_permissible" ${talent.pureImage === 'bold' ? 'selected' : ''}>Bold & Sensational Permitted</option>
                     </select>
                   </div>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group mt-2">
                   <div class="slider-header-row">
                     <label class="form-label">Upfront Signing Bonus</label>
-                    <span class="slider-display-val highlight-gold font-mono" id="upfrontDisplay">${window.StudioGame.Systems.Finance.formatRupees(talent.averageFee * 2)}</span>
+                    <span class="slider-display-val highlight-gold font-mono font-bold" id="upfrontDisplay">${formatRupees(Math.round(talent.averageFee * 0.85))}</span>
                   </div>
                   <input type="range" class="form-range" id="negUpfrontSlider"
-                    min="${Math.round(talent.averageFee * 0.5)}"
-                    max="${Math.round(talent.averageFee * 6)}"
+                    min="${Math.round(talent.averageFee * 0.25)}"
+                    max="${Math.round(talent.averageFee * 3.5)}"
                     step="${Math.max(10000, Math.round(talent.averageFee / 20))}"
-                    value="${Math.round(talent.averageFee * 2)}">
+                    value="${Math.round(talent.averageFee * 0.85)}">
                   <div class="slider-extremes">
-                    <span>${window.StudioGame.Systems.Finance.formatRupees(talent.averageFee * 0.5)}</span>
-                    <span>${window.StudioGame.Systems.Finance.formatRupees(talent.averageFee * 6)}</span>
+                    <span>${formatRupees(talent.averageFee * 0.25)}</span>
+                    <span>${formatRupees(talent.averageFee * 3.5)}</span>
                   </div>
                 </div>
 
@@ -656,7 +720,7 @@ window.StudioGame.UI.TalentScreen = (function() {
                   </button>
                 </div>
               </div>
-            `}
+            `)}
           </div>
         </div>
 
@@ -675,6 +739,28 @@ window.StudioGame.UI.TalentScreen = (function() {
       if (e.target === backdrop) close();
     });
 
+    // Interpersonal action buttons
+    backdrop.querySelectorAll('.btn-talent-action').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const actionType = btn.getAttribute('data-action');
+        let params = {};
+        if (actionType === 'makeover') {
+          params.targetImage = talent.pureImage === 'wholesome' ? 'bold' : 'wholesome';
+        }
+        const res = window.StudioGame.Systems.Talent.interactWithTalent(state, talent.id, actionType, params);
+        if (res.success) {
+          window.StudioGame.State.autosave();
+          callbacks.onStateChange?.();
+          window.StudioGame.App.showToast(`✨ ${res.message}`);
+          close();
+          openTalentDossierModal(talent.id, state, callbacks);
+        } else {
+          window.StudioGame.App.showToast(`⚠️ ${res.error}`);
+        }
+      });
+    });
+
+    // Bailout debt
     backdrop.querySelector('#btnBailoutDebt')?.addEventListener('click', () => {
       const res = window.StudioGame.Systems.Talent.bailoutDebt(state, talent.id);
       if (res.success) {
@@ -688,6 +774,7 @@ window.StudioGame.UI.TalentScreen = (function() {
       }
     });
 
+    // Release contract
     backdrop.querySelector('#btnReleaseContract')?.addEventListener('click', () => {
       window.StudioGame.Systems.Talent.releaseContract(state, talent.id);
       window.StudioGame.State.autosave();
@@ -697,11 +784,42 @@ window.StudioGame.UI.TalentScreen = (function() {
       openTalentDossierModal(talent.id, state, callbacks);
     });
 
+    // Extend contract
+    backdrop.querySelector('#btnOpenExtendModal')?.addEventListener('click', () => {
+      const additional = 3;
+      const res = window.StudioGame.Systems.Talent.extendContract(state, talent.id, additional);
+      if (res.success) {
+        window.StudioGame.State.autosave();
+        callbacks.onStateChange?.();
+        window.StudioGame.App.showToast(`📜 Extended contract by +${additional} months (+90 days)!`);
+        close();
+        openTalentDossierModal(talent.id, state, callbacks);
+      } else {
+        window.StudioGame.App.showToast(`⚠️ ${res.error}`);
+      }
+    });
+
+    // Sliders
     const upfrontSlider = backdrop.querySelector('#negUpfrontSlider');
     const upfrontDisplay = backdrop.querySelector('#upfrontDisplay');
+    const monthsSelect = backdrop.querySelector('#negMonths');
+
+    function updateSliderDefault() {
+      if (!upfrontSlider || !monthsSelect) return;
+      const m = parseInt(monthsSelect.value, 10);
+      const mult = window.StudioGame.Systems.Talent.getDurationMultiplier(m);
+      const def = Math.round(talent.averageFee * mult);
+      upfrontSlider.value = def;
+      if (upfrontDisplay) upfrontDisplay.textContent = formatRupees(def);
+    }
+
+    if (monthsSelect) {
+      monthsSelect.addEventListener('change', updateSliderDefault);
+    }
+
     if (upfrontSlider && upfrontDisplay) {
       upfrontSlider.addEventListener('input', () => {
-        upfrontDisplay.textContent = window.StudioGame.Systems.Finance.formatRupees(parseInt(upfrontSlider.value, 10));
+        upfrontDisplay.textContent = formatRupees(parseInt(upfrontSlider.value, 10));
       });
     }
 
@@ -713,109 +831,72 @@ window.StudioGame.UI.TalentScreen = (function() {
       });
     }
 
+    // Submit contract proposal
     backdrop.querySelector('#btnSubmitNegotiation')?.addEventListener('click', () => {
       const upfrontFee = parseInt(upfrontSlider?.value || 0, 10);
       const profitShare = parseInt(profitSlider?.value || 0, 10);
-      const contractMonths = parseInt(backdrop.querySelector('#negMonths')?.value || 12, 10);
+      const contractMonths = parseInt(monthsSelect?.value || 3, 10);
       const intimacyClause = backdrop.querySelector('#negIntimacy')?.value || 'standard';
 
       const offer = { upfrontFee, profitShare, contractMonths, intimacyClause };
-      const evalResult = window.StudioGame.Systems.Talent.evaluateContractOffer(state, talent.id, offer);
-
+      const res = window.StudioGame.Systems.Talent.evaluateContractOffer(state, talent.id, offer);
       const feedbackArea = backdrop.querySelector('#negotiationFeedbackArea');
-      if (!feedbackArea) return;
 
-      if (evalResult.agreed) {
-        feedbackArea.innerHTML = `
-          <div class="negotiation-result-box agreed slide-down">
-            <div class="result-headline">🎉 Deal Accepted!</div>
-            <p>${evalResult.message}</p>
-            <button class="btn btn-emerald btn-full mt-2" id="btnFinalizeSign">
-              Confirm & Sign Contract (${window.StudioGame.Systems.Finance.formatRupees(upfrontFee)})
-            </button>
-          </div>
-        `;
-        feedbackArea.querySelector('#btnFinalizeSign')?.addEventListener('click', () => {
-          const signRes = window.StudioGame.Systems.Talent.signContract(state, talent.id, offer);
-          if (signRes.success) {
-            window.StudioGame.State.autosave();
-            callbacks.onStateChange?.();
-            window.StudioGame.App.showToast(`📜 Signed ${talent.name} to ${state.studio.name}!`);
-            close();
-            openTalentDossierModal(talent.id, state, callbacks);
-          } else {
-            window.StudioGame.App.showToast(`⚠️ ${signRes.error}`);
-          }
-        });
-      } else if (evalResult.counterOffer) {
-        const counter = evalResult.counterOffer;
-        feedbackArea.innerHTML = `
-          <div class="negotiation-result-box countered slide-down">
-            <div class="result-headline">⚖️ Counter-Offer Received</div>
-            <p>${evalResult.message}</p>
-            <div class="counter-specs-box">
-              <span>Demanded Upfront: <strong>${window.StudioGame.Systems.Finance.formatRupees(counter.upfrontFee)}</strong></span>
-              <span>Profit Share: <strong>${counter.profitShare}%</strong></span>
-            </div>
-            <div class="counter-actions-row">
-              <button class="btn btn-sm btn-primary" id="btnAcceptCounter">
-                Accept Counter (${window.StudioGame.Systems.Finance.formatRupees(counter.upfrontFee)})
+      if (res.agreed || res.success) {
+        const signRes = window.StudioGame.Systems.Talent.signContract(state, talent.id, offer);
+        if (signRes.success) {
+          window.StudioGame.State.autosave();
+          callbacks.onStateChange?.();
+          window.StudioGame.App.showToast(`🖋️ Successfully signed ${talent.name} on ${contractMonths}-month exclusive contract!`);
+          close();
+          openTalentDossierModal(talent.id, state, callbacks);
+        } else {
+          window.StudioGame.App.showToast(`⚠️ ${signRes.error}`);
+        }
+      } else if (res.counterOffer) {
+        if (feedbackArea) {
+          feedbackArea.innerHTML = `
+            <div class="negotiation-result-box countered slide-down">
+              <div class="result-headline highlight-amber">Manager Countered:</div>
+              <p>${res.message}</p>
+              <div class="counter-specs-box">
+                <span>Requested Upfront: <strong class="font-mono">${formatRupees(res.counterOffer.upfrontFee)}</strong></span>
+                <span>Profit Share: <strong class="font-mono">${res.counterOffer.profitShare}%</strong></span>
+              </div>
+              <button class="btn btn-sm btn-emerald mt-2" id="btnAcceptCounter">
+                Accept Counter Terms (${formatRupees(res.counterOffer.upfrontFee)})
               </button>
             </div>
-          </div>
-        `;
-        feedbackArea.querySelector('#btnAcceptCounter')?.addEventListener('click', () => {
-          const counterTerms = {
-            upfrontFee: counter.upfrontFee,
-            profitShare: counter.profitShare,
-            contractMonths,
-            intimacyClause: counter.intimacyClause
-          };
-          const signRes = window.StudioGame.Systems.Talent.signContract(state, talent.id, counterTerms);
-          if (signRes.success) {
-            window.StudioGame.State.autosave();
-            callbacks.onStateChange?.();
-            window.StudioGame.App.showToast(`📜 Accepted counter and signed ${talent.name}!`);
-            close();
-            openTalentDossierModal(talent.id, state, callbacks);
-          } else {
-            window.StudioGame.App.showToast(`⚠️ ${signRes.error}`);
-          }
-        });
+          `;
+          feedbackArea.querySelector('#btnAcceptCounter')?.addEventListener('click', () => {
+            const counterSign = window.StudioGame.Systems.Talent.signContract(state, talent.id, {
+              upfrontFee: res.counterOffer.upfrontFee,
+              profitShare: res.counterOffer.profitShare,
+              contractMonths,
+              intimacyClause: res.counterOffer.intimacyClause
+            });
+            if (counterSign.success) {
+              window.StudioGame.State.autosave();
+              callbacks.onStateChange?.();
+              window.StudioGame.App.showToast(`🖋️ Signed ${talent.name} on counter terms!`);
+              close();
+              openTalentDossierModal(talent.id, state, callbacks);
+            } else {
+              window.StudioGame.App.showToast(`⚠️ ${counterSign.error}`);
+            }
+          });
+        }
       } else {
-        feedbackArea.innerHTML = `
-          <div class="negotiation-result-box rejected slide-down">
-            <div class="result-headline">❌ Proposal Rejected</div>
-            <p>${evalResult.reason}</p>
-          </div>
-        `;
+        if (feedbackArea) {
+          feedbackArea.innerHTML = `
+            <div class="negotiation-result-box rejected slide-down">
+              <div class="result-headline highlight-rose">Offer Rejected:</div>
+              <p>${res.reason}</p>
+            </div>
+          `;
+        }
       }
     });
-  }
-
-  function formatPureImageLabel(pureImage) {
-    switch (pureImage) {
-      case 'wholesome': return '🕊️ Pure / Wholesome (Strict No-Intimacy)';
-      case 'romantic': return '💖 Romantic & Commercial';
-      case 'bold': return '🔥 Bold & Sensational';
-      case 'unrestricted': return '⚡ Method / Unrestricted';
-      default: return 'Standard';
-    }
-  }
-
-  function formatContractStatus(talent) {
-    if (talent.contractStatus === 'signed_player') return `Exclusive with Our Studio (${talent.contractDaysRemaining} days)`;
-    if (talent.contractStatus === 'exclusive_studio') return `Contracted to ${talent.contractWith || 'Rival'}`;
-    return 'Free Agent';
-  }
-
-  function getVerdictBadgeClass(verdict) {
-    if (!verdict) return 'badge-slate';
-    if (verdict.includes('All-Time') || verdict.includes('Historic')) return 'badge-gold';
-    if (verdict.includes('Blockbuster')) return 'badge-emerald';
-    if (verdict.includes('Super Hit') || verdict.includes('Hit')) return 'badge-cyan';
-    if (verdict.includes('Acclaimed')) return 'badge-purple';
-    return 'badge-slate';
   }
 
   function escapeHtml(str) {

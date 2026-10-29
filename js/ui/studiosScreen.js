@@ -345,7 +345,7 @@ window.StudioGame.UI.StudiosScreen = (function() {
             ${(s.signatureGenres || ['Commercial Cinema']).slice(0, 2).map(g => `<span class="genre-tag-pill">${g}</span>`).join('')}
           </div>
           <button class="btn btn-sm btn-outline-gold btn-view-studio" data-studio-id="${s.id}">
-            Dossier & Partner
+            Studio Inside & Stars
           </button>
         </div>
       </div>
@@ -424,7 +424,7 @@ window.StudioGame.UI.StudiosScreen = (function() {
                       <td class="td-action">
                         ${!isPlayer ? `
                           <button class="btn btn-xs btn-secondary btn-view-studio" data-studio-id="${s.id}">
-                            Dossier
+                            Inside
                           </button>
                         ` : '<span class="badge badge-emerald">You</span>'}
                       </td>
@@ -463,9 +463,7 @@ window.StudioGame.UI.StudiosScreen = (function() {
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         studioSearchQuery = e.target.value;
-        // Re-render
         render(container, state, callbacks);
-        // Maintain focus
         const refocused = container.querySelector('#studioSearchInput');
         if (refocused) {
           refocused.focus();
@@ -487,7 +485,7 @@ window.StudioGame.UI.StudiosScreen = (function() {
       });
     });
 
-    // View Studio modal
+    // View Studio inside modal
     container.querySelectorAll('.btn-view-studio').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -504,6 +502,10 @@ window.StudioGame.UI.StudiosScreen = (function() {
     });
   }
 
+  /**
+   * Redesigned Studio Inside Screen:
+   * Overview, Contracted Stars Roster with Poaching Buyouts, Theatrical Runs, and Diplomacy.
+   */
   function openStudioDossierModal(studioId, state, callbacks) {
     const existing = document.getElementById('studioDossierModal');
     if (existing) existing.remove();
@@ -515,122 +517,269 @@ window.StudioGame.UI.StudiosScreen = (function() {
     const isPublic = studio.isPublic;
     const crestUrl = getStudioCrestSvg(studio.name, studio.founderStarId !== undefined);
 
+    let activeDossierTab = 'stars'; // 'stars' | 'overview' | 'theatre' | 'diplomacy'
+
     const backdrop = document.createElement('div');
     backdrop.className = 'modal-backdrop';
     backdrop.id = 'studioDossierModal';
 
-    backdrop.innerHTML = `
-      <div class="modal-card modal-lg slide-up">
-        <div class="modal-header">
-          <div class="modal-title-wrap">
-            <img src="${crestUrl}" class="modal-crest-small" alt="" />
-            <div>
-              <div class="modal-studio-subtag">
-                <span class="badge ${studio.attitude === 'friendly' ? 'badge-emerald' : (studio.attitude === 'aggressive' ? 'badge-rose' : 'badge-amber')}">
-                  ${studio.attitude ? studio.attitude.toUpperCase() : 'NEUTRAL'}
-                </span>
-                ${isPublic ? `<span class="badge badge-gold font-mono">${studio.ticker}</span>` : '<span class="badge badge-slate">PRIVATE HOUSE</span>'}
-              </div>
-              <h2 class="modal-title">${escapeHtml(studio.name)}</h2>
-            </div>
-          </div>
-          <button class="btn-icon-close" id="btnCloseStudioModal" aria-label="Close">&times;</button>
-        </div>
+    function renderDossierView() {
+      // Find all stars contracted to this studio
+      const contractedStars = (state.talent || []).filter(t =>
+        t.contractWithStudioId === studio.id ||
+        t.contractWith === studio.name ||
+        (studio.contractedStars && studio.contractedStars.includes(t.name)) ||
+        (studio.founderName && t.name === studio.founderName)
+      );
 
-        <div class="modal-body studio-modal-body">
-          <div class="studio-hero-intel">
-            <div class="intel-col">
-              <span class="intel-lbl">Founded By</span>
-              <span class="intel-val">${escapeHtml(studio.founder || studio.founderName || 'Media Conglomerate')}</span>
-            </div>
-            <div class="intel-col">
-              <span class="intel-lbl">Valuation</span>
-              <span class="intel-val highlight-gold font-mono">${formatRupees(studio.netWorth)}</span>
-            </div>
-            <div class="intel-col">
-              <span class="intel-lbl">Liquid Reserves</span>
-              <span class="intel-val font-mono">${formatRupees(studio.cash || studio.netWorth * 0.3)}</span>
-            </div>
-            <div class="intel-col">
-              <span class="intel-lbl">Industry Reputation</span>
-              <span class="intel-val highlight-indigo">${studio.reputation}/100</span>
-            </div>
-          </div>
-
-          <!-- Signature Genres -->
-          <div class="studio-dossier-section">
-            <h4 class="section-title">Core Competencies & Signature Genres</h4>
-            <div class="genres-cluster">
-              ${(studio.signatureGenres || ['Commercial Drama', 'Spectacle Cinema']).map(g => `<span class="badge badge-blue">${g}</span>`).join('')}
-            </div>
-          </div>
-
-          <!-- Active Theatrical Runs -->
-          <div class="studio-dossier-section">
-            <h4 class="section-title">Active Films in Theatres</h4>
-            ${(studio.activeReleases && studio.activeReleases.length > 0) ? `
-              <div class="theatre-runs-list">
-                ${studio.activeReleases.map(rel => `
-                  <div class="theatre-run-card">
-                    <div class="run-header">
-                      <span class="run-film-title">🎬 ${escapeHtml(rel.title)}</span>
-                      <span class="badge badge-emerald">Week ${rel.week}</span>
-                    </div>
-                    <div class="run-stats">
-                      <span>Weekly Run: <strong class="font-mono">${formatRupees(rel.weeklyGross)}</strong></span>
-                      <span>Total Box Office: <strong class="highlight-gold font-mono">${formatRupees(rel.totalGross)}</strong></span>
-                    </div>
-                  </div>
-                `).join('')}
-              </div>
-            ` : '<p class="empty-note text-muted">No current titles running in theatres. New productions in development pipeline.</p>'}
-          </div>
-
-          <!-- Diplomacy Actions -->
-          <div class="studio-diplomacy-box">
-            <div class="diplomacy-header">
-              <span class="diplomacy-icon">🤝</span>
+      backdrop.innerHTML = `
+        <div class="modal-card modal-lg slide-up">
+          <div class="modal-header">
+            <div class="modal-title-wrap">
+              <img src="${crestUrl}" class="modal-crest-small" alt="" />
               <div>
-                <h4 class="diplomacy-title">Strategic Co-Production Partnership</h4>
-                <p class="diplomacy-desc">
-                  Pitch a 40% joint co-production alliance with ${escapeHtml(studio.name)}. Shared budgets reduce capital exposure, pool star power, and expand screen distribution.
-                </p>
+                <div class="modal-studio-subtag">
+                  <span class="badge ${studio.attitude === 'friendly' ? 'badge-emerald' : (studio.attitude === 'aggressive' ? 'badge-rose' : 'badge-amber')}">
+                    ${studio.attitude ? studio.attitude.toUpperCase() : 'NEUTRAL'}
+                  </span>
+                  ${isPublic ? `<span class="badge badge-gold font-mono">${studio.ticker}</span>` : '<span class="badge badge-slate">PRIVATE HOUSE</span>'}
+                </div>
+                <h2 class="modal-title">${escapeHtml(studio.name)}</h2>
               </div>
             </div>
-            <div class="diplomacy-actions">
-              <button class="btn btn-primary" id="btnPitchCoProd">
-                Pitch 40% Co-Production Partnership
-              </button>
-            </div>
+            <button class="btn-icon-close" id="btnCloseStudioModal" aria-label="Close">&times;</button>
+          </div>
+
+          <!-- Inside Screen Sub-Tabs -->
+          <div class="dossier-subtabs-nav px-3 pt-2">
+            <button class="dossier-tab-btn ${activeDossierTab === 'stars' ? 'active' : ''}" data-dossier-tab="stars">
+              ⭐ Contracted Stars (${contractedStars.length})
+            </button>
+            <button class="dossier-tab-btn ${activeDossierTab === 'overview' ? 'active' : ''}" data-dossier-tab="overview">
+              🏛️ Financials & IP
+            </button>
+            <button class="dossier-tab-btn ${activeDossierTab === 'theatre' ? 'active' : ''}" data-dossier-tab="theatre">
+              🎟️ Theatrical Runs (${(studio.activeReleases || []).length})
+            </button>
+            <button class="dossier-tab-btn ${activeDossierTab === 'diplomacy' ? 'active' : ''}" data-dossier-tab="diplomacy">
+              🤝 Co-Production
+            </button>
+          </div>
+
+          <div class="modal-body studio-modal-body p-3">
+            <!-- TAB 1: CONTRACTED STARS & POACHING -->
+            ${activeDossierTab === 'stars' ? `
+              <div class="rival-stars-section">
+                <div class="poach-info-box mb-3">
+                  <span class="poach-icon">⚡</span>
+                  <div>
+                    <strong>Talent Poaching & Buyout Center:</strong> You can break rival studio contracts by offering stars a 50% compensation buyout + 1.5x upfront bonus.
+                    <span class="text-rose">Warning: Poaching will turn this studio hostile and aggressive!</span>
+                  </div>
+                </div>
+
+                <div class="rival-stars-grid">
+                  ${contractedStars.length > 0 ? contractedStars.map(star => {
+                    const isPoachedToPlayer = star.contractStatus === 'signed_player';
+                    const avatarUrl = window.StudioGame.Face.generate({ gender: star.gender, seed: star.avatarSeed || star.name });
+                    const buyoutFee = Math.round(star.averageFee * 0.6);
+                    const bonusFee = Math.round(star.averageFee * 0.85 * 1.5);
+                    const totalPoachCost = buyoutFee + bonusFee;
+
+                    return `
+                      <div class="rival-star-item-card ${isPoachedToPlayer ? 'is-poached' : ''}">
+                        <div class="rival-star-avatar">
+                          <img src="${avatarUrl}" alt="${star.name}" class="avatar-img-square" />
+                        </div>
+                        <div class="rival-star-info">
+                          <div class="star-top-row">
+                            <strong class="star-name">${escapeHtml(star.name)}</strong>
+                            <span class="badge ${isPoachedToPlayer ? 'badge-emerald' : 'badge-slate'}">
+                              ${isPoachedToPlayer ? '⭐ Signed to You' : star.category}
+                            </span>
+                          </div>
+                          <div class="star-stats-line text-xs text-muted">
+                            <span>🔥 ${window.StudioGame.Systems.Talent.formatFans(star.fans)}</span>
+                            <span>Acting: ${star.acting}</span>
+                            <span>Glamour: ${star.glamour}</span>
+                          </div>
+                          <div class="star-contract-status text-xs mt-1">
+                            ${isPoachedToPlayer ? '<span class="highlight-emerald font-bold">Defected to Your Studio!</span>' : `
+                              <span class="text-dim font-mono">⏳ ${star.contractDaysRemaining || 90}D Left &bull; Fee: ${formatRupees(star.averageFee)}</span>
+                            `}
+                          </div>
+                        </div>
+
+                        ${!isPoachedToPlayer ? `
+                          <button class="btn btn-sm btn-outline-rose btn-poach-star" data-star-id="${star.id}" data-cost="${totalPoachCost}">
+                            ⚡ Poach Star (${formatRupees(totalPoachCost)})
+                          </button>
+                        ` : ''}
+                      </div>
+                    `;
+                  }).join('') : `
+                    <div class="empty-results-box text-center p-4">
+                      <span class="empty-icon">⭐</span>
+                      <h4>No Contracted Artistes</h4>
+                      <p>${studio.name} currently operates primarily with non-exclusive free agents.</p>
+                    </div>
+                  `}
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- TAB 2: OVERVIEW & FINANCIALS -->
+            ${activeDossierTab === 'overview' ? `
+              <div class="studio-hero-intel mb-3">
+                <div class="intel-col">
+                  <span class="intel-lbl">Founded By</span>
+                  <span class="intel-val">${escapeHtml(studio.founder || studio.founderName || 'Media Conglomerate')}</span>
+                </div>
+                <div class="intel-col">
+                  <span class="intel-lbl">Valuation</span>
+                  <span class="intel-val highlight-gold font-mono">${formatRupees(studio.netWorth)}</span>
+                </div>
+                <div class="intel-col">
+                  <span class="intel-lbl">Liquid Working Capital</span>
+                  <span class="intel-val font-mono">${formatRupees(studio.cash || studio.netWorth * 0.3)}</span>
+                </div>
+                <div class="intel-col">
+                  <span class="intel-lbl">Industry Reputation</span>
+                  <span class="intel-val highlight-indigo">${studio.reputation}/100</span>
+                </div>
+              </div>
+
+              <div class="studio-dossier-section mb-3">
+                <h4 class="section-title">Core Competencies & Signature Genres</h4>
+                <div class="genres-cluster">
+                  ${(studio.signatureGenres || ['Commercial Drama', 'Spectacle Cinema']).map(g => `<span class="badge badge-blue">${g}</span>`).join('')}
+                </div>
+              </div>
+
+              <div class="studio-dossier-section">
+                <h4 class="section-title">Historic Filmography & Records</h4>
+                <div class="filmography-stats-box">
+                  <div class="proj-line">
+                    <span>Feature Films Produced:</span>
+                    <span class="font-mono font-bold">${studio.filmsCount || 0} Titles</span>
+                  </div>
+                  <div class="proj-line">
+                    <span>All-Time Highest Grosser:</span>
+                    <span class="font-mono font-bold highlight-gold">${formatRupees(studio.boxOfficeRecord || studio.netWorth * 0.8)}</span>
+                  </div>
+                  <div class="proj-line">
+                    <span>Corporate Status:</span>
+                    <span class="font-bold ${isPublic ? 'highlight-cyan' : ''}">${isPublic ? `Listed on Dalal Street (${studio.ticker})` : 'Private Enterprise'}</span>
+                  </div>
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- TAB 3: THEATRICAL RELEASES -->
+            ${activeDossierTab === 'theatre' ? `
+              <div class="studio-dossier-section">
+                <h4 class="section-title">Active Films in Pan-India Theatres</h4>
+                ${(studio.activeReleases && studio.activeReleases.length > 0) ? `
+                  <div class="theatre-runs-list">
+                    ${studio.activeReleases.map(rel => `
+                      <div class="theatre-run-card">
+                        <div class="run-header">
+                          <span class="run-film-title">🎬 ${escapeHtml(rel.title)}</span>
+                          <span class="badge badge-emerald">Week ${rel.week}</span>
+                        </div>
+                        <div class="run-stats">
+                          <span>Weekly Run: <strong class="font-mono">${formatRupees(rel.weeklyGross)}</strong></span>
+                          <span>Total Box Office: <strong class="highlight-gold font-mono">${formatRupees(rel.totalGross)}</strong></span>
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>
+                ` : '<p class="empty-note text-muted p-3">No current titles running in theatres. New productions in development pipeline.</p>'}
+              </div>
+            ` : ''}
+
+            <!-- TAB 4: DIPLOMACY & CO-PRODUCTION -->
+            ${activeDossierTab === 'diplomacy' ? `
+              <div class="studio-diplomacy-box">
+                <div class="diplomacy-header">
+                  <span class="diplomacy-icon">🤝</span>
+                  <div>
+                    <h4 class="diplomacy-title">Strategic Co-Production Partnership</h4>
+                    <p class="diplomacy-desc">
+                      Pitch a 40% joint co-production alliance with ${escapeHtml(studio.name)}. Shared budgets reduce capital exposure, pool star power, and expand screen distribution.
+                    </p>
+                  </div>
+                </div>
+                <div class="diplomacy-actions">
+                  <button class="btn btn-primary" id="btnPitchCoProd">
+                    Pitch 40% Co-Production Partnership
+                  </button>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" id="btnCloseStudioBottom">Close</button>
           </div>
         </div>
+      `;
 
-        <div class="modal-footer">
-          <button class="btn btn-secondary" id="btnCloseStudioBottom">Close</button>
-        </div>
-      </div>
-    `;
+      // Event listeners
+      const close = () => backdrop.remove();
+      backdrop.querySelector('#btnCloseStudioModal')?.addEventListener('click', close);
+      backdrop.querySelector('#btnCloseStudioBottom')?.addEventListener('click', close);
+      backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) close();
+      });
+
+      // Sub-tab toggling
+      backdrop.querySelectorAll('[data-dossier-tab]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeDossierTab = btn.getAttribute('data-dossier-tab');
+          renderDossierView();
+        });
+      });
+
+      // Pitch co-production
+      backdrop.querySelector('#btnPitchCoProd')?.addEventListener('click', () => {
+        const res = window.StudioGame.Systems.Studios.pitchCoProduction(state, studio.id);
+        if (res.success) {
+          window.StudioGame.State.autosave();
+          callbacks.onStateChange?.();
+          window.StudioGame.App.showToast(`🤝 ${res.message}`);
+          close();
+        } else {
+          window.StudioGame.App.showToast(`⚠️ ${res.error}`);
+        }
+      });
+
+      // Poach star button
+      backdrop.querySelectorAll('.btn-poach-star').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const starId = btn.getAttribute('data-star-id');
+          const cost = parseInt(btn.getAttribute('data-cost'), 10);
+          const star = (state.talent || []).find(t => t.id === starId);
+
+          if (state.studio.cash < cost) {
+            return window.StudioGame.App.showToast(`⚠️ Insufficient studio capital. Requires ${formatRupees(cost)}.`);
+          }
+
+          const res = window.StudioGame.Systems.Talent.poachTalent(state, starId, 3);
+          if (res.success) {
+            window.StudioGame.State.autosave();
+            callbacks.onStateChange?.();
+            window.StudioGame.App.showToast(`⚡ SENSATIONAL POACHING: ${res.talentName} defected to ${state.studio.name}!`);
+            renderDossierView();
+          } else {
+            window.StudioGame.App.showToast(`⚠️ ${res.error}`);
+          }
+        });
+      });
+    }
 
     document.body.appendChild(backdrop);
-
-    const close = () => backdrop.remove();
-    backdrop.querySelector('#btnCloseStudioModal')?.addEventListener('click', close);
-    backdrop.querySelector('#btnCloseStudioBottom')?.addEventListener('click', close);
-    backdrop.addEventListener('click', (e) => {
-      if (e.target === backdrop) close();
-    });
-
-    backdrop.querySelector('#btnPitchCoProd')?.addEventListener('click', () => {
-      const res = window.StudioGame.Systems.Studios.pitchCoProduction(state, studio.id);
-      if (res.success) {
-        window.StudioGame.State.autosave();
-        callbacks.onStateChange?.();
-        window.StudioGame.App.showToast(`🤝 ${res.message}`);
-        close();
-      } else {
-        window.StudioGame.App.showToast(`⚠️ ${res.error}`);
-      }
-    });
+    renderDossierView();
   }
 
   function capitalize(str) {

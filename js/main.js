@@ -48,6 +48,14 @@ window.StudioGame.App = (function() {
       description: 'Complex Dalal Street stock exchange, studio IPOs, technical analysis, buy/sell pressure engine with -8% to +8% circuit breakers.'
     },
     {
+      id: 'bank',
+      name: 'Bank',
+      icon: '🏛️',
+      unlocked: true,
+      unlockVersion: '1.0',
+      description: 'Imperial Reserve Bank of India: Term loans, mezzanine film bridge credit, Fixed Deposits (7.5% APY), and corporate debt management.'
+    },
+    {
       id: 'news',
       name: 'News',
       icon: '📰',
@@ -151,6 +159,8 @@ window.StudioGame.App = (function() {
       showStudios();
     } else if (activeTab === 'market') {
       showMarket();
+    } else if (activeTab === 'bank') {
+      showBank();
     } else if (activeTab === 'news') {
       showNews();
     }
@@ -227,6 +237,25 @@ window.StudioGame.App = (function() {
         onAdvanceToEvent: handleAdvanceToEvent,
         onStateChange: () => {
           showMarket();
+        }
+      });
+    }
+  }
+
+  function showBank() {
+    const viewport = document.getElementById('screenViewport');
+    const tabBar = document.getElementById('bottomTabBar');
+    if (tabBar) tabBar.style.display = 'block';
+
+    const state = window.StudioGame.State.get();
+    if (!state) return;
+
+    if (window.StudioGame.UI.BankScreen) {
+      window.StudioGame.UI.BankScreen.render(viewport, state, {
+        onAdvanceTurn: handleAdvanceTurn,
+        onAdvanceToEvent: handleAdvanceToEvent,
+        onStateChange: () => {
+          showBank();
         }
       });
     }

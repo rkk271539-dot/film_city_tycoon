@@ -189,16 +189,11 @@ window.StudioGame.App = (function() {
     window.StudioGame.State.autosave();
     showDashboard();
 
+    // Only notify if genuine noteworthy events or milestones occurred, no routine skip toaster
     if (result.events && result.events.length > 0) {
       result.events.forEach(evt => {
         showToast(evt.message);
       });
-    } else {
-      if (days === 1) {
-        showToast(`📅 Advanced to Day ${state.clock.day} (${state.clock.formattedDate})`);
-      } else {
-        showToast(`⏩ Fast-forwarded ${days} days to ${state.clock.formattedDate}`);
-      }
     }
   }
 
@@ -238,8 +233,8 @@ window.StudioGame.App = (function() {
 
           <div class="roadmap-box">
             <div class="roadmap-title">Current Development Milestone:</div>
-            <div class="roadmap-val highlight-emerald">v0.1 Foundation & Dashboard &bull; Complete</div>
-            <div class="roadmap-next">Next Target: <strong>v0.2 Wife Autonomous Career Engine</strong></div>
+            <div class="roadmap-val highlight-emerald">v0.2 Wife Autonomous Career Engine &bull; Complete</div>
+            <div class="roadmap-next">Next Target: <strong>v0.3 Actions & Photoshoot Contracts</strong></div>
           </div>
         </div>
 

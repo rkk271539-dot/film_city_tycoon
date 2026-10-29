@@ -7,7 +7,7 @@
 window.StudioGame = window.StudioGame || {};
 
 window.StudioGame.State = (function() {
-  const CURRENT_VERSION = '0.1.0';
+  const CURRENT_VERSION = '0.2.0';
   const STORAGE_PREFIX = 'filmy_tycoon_';
   const AUTOSAVE_KEY = STORAGE_PREFIX + 'autosave';
   const AUTOSAVE_HISTORY_KEY = STORAGE_PREFIX + 'autosave_history';
@@ -54,8 +54,29 @@ window.StudioGame.State = (function() {
         netWorth: wifeNetWorth,
         openness: 10, // Base openness (0-100), deep mechanics in v1.2
         relationship: 95, // Loyalty / connection meter (0-100)
-        currentRole: 'Exploring Opportunities',
-        fitness: 82
+        currentRoleId: 'studio_creative_head',
+        currentRole: 'Studio Creative Head',
+        fitness: 82,
+        skills: {
+          acting: 28,
+          glamour: 42,
+          business: 45,
+          creative: 50
+        },
+        nudgeRole: null,
+        nudgeDaysRemaining: 0,
+        careerEarningsTotal: 0,
+        lastDecisionDay: 1,
+        careerHistory: [
+          {
+            day: 1,
+            date: '01 Jan 2026',
+            roleId: 'studio_creative_head',
+            roleName: 'Studio Creative Head',
+            title: 'Appointed Studio Creative Head',
+            description: `Joined ${params.studioName || 'Apex Motion Pictures'} to spearhead storytelling and narrative excellence.`
+          }
+        ]
       },
       studio: {
         name: params.studioName || 'Apex Motion Pictures',
@@ -316,6 +337,9 @@ window.StudioGame.State = (function() {
     rawState.wife.netWorth = rawState.wife.netWorth || 45000000;
     rawState.wife.openness = rawState.wife.openness !== undefined ? rawState.wife.openness : 10;
     rawState.wife.relationship = rawState.wife.relationship || 95;
+    if (window.StudioGame.Systems.Wife) {
+      window.StudioGame.Systems.Wife.ensureWifeState(rawState);
+    }
     rawState.studio = rawState.studio || {};
     rawState.studio.cash = rawState.studio.cash !== undefined ? rawState.studio.cash : 30000000;
     rawState.feed = rawState.feed || [];

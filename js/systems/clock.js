@@ -78,6 +78,11 @@ window.StudioGame.Systems.Clock = (function() {
         window.StudioGame.Systems.Finance.dailyTick(state);
       }
 
+      // 2b. Wife daily progression & autonomous agency tick
+      if (window.StudioGame.Systems.Wife) {
+        window.StudioGame.Systems.Wife.dailyTick(state);
+      }
+
       // 3. Ambient Industry Gossip / News roll
       if (Math.random() < 0.12 && window.StudioGame.Data.Events) {
         const rumors = window.StudioGame.Data.Events.dailyRumors;

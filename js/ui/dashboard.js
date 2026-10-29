@@ -21,6 +21,9 @@ window.StudioGame.UI.Dashboard = (function() {
 
   function render(container, state, callbacks = {}) {
     if (!container || !state) return;
+    if (window.StudioGame.Systems.Wife) {
+      window.StudioGame.Systems.Wife.ensureWifeState(state);
+    }
     const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
     const skills = window.StudioGame.Data.Skills || [];
     const playerSkill = skills.find(s => s.id === state.player.skill) || {
@@ -278,7 +281,11 @@ window.StudioGame.UI.Dashboard = (function() {
     const wifeCard = document.getElementById('cardWifeDashboard');
     if (wifeCard) {
       wifeCard.addEventListener('click', () => {
-        window.StudioGame.UI.WifePreview.open(state);
+        if (window.StudioGame.UI.WifeScreen) {
+          window.StudioGame.UI.WifeScreen.open(state, callbacks.onStateChange);
+        } else if (window.StudioGame.UI.WifePreview) {
+          window.StudioGame.UI.WifePreview.open(state);
+        }
       });
     }
 

@@ -19,7 +19,7 @@ window.StudioGame.App = (function() {
       id: 'actions',
       name: 'Actions',
       icon: '🎬',
-      unlocked: false,
+      unlocked: true,
       unlockVersion: '0.3',
       description: 'Photoshoot & Ad Film bidding contracts against rival studios, project pipeline management, and studio upgrade facilities.'
     },
@@ -143,6 +143,27 @@ window.StudioGame.App = (function() {
 
     if (activeTab === 'home') {
       showDashboard();
+    } else if (activeTab === 'actions') {
+      showActions();
+    }
+  }
+
+  function showActions() {
+    const viewport = document.getElementById('screenViewport');
+    const tabBar = document.getElementById('bottomTabBar');
+    if (tabBar) tabBar.style.display = 'block';
+
+    const state = window.StudioGame.State.get();
+    if (!state) return;
+
+    if (window.StudioGame.UI.ActionsScreen) {
+      window.StudioGame.UI.ActionsScreen.render(viewport, state, {
+        onAdvanceTurn: handleAdvanceTurn,
+        onAdvanceToEvent: handleAdvanceToEvent,
+        onStateChange: () => {
+          showActions();
+        }
+      });
     }
   }
 
@@ -233,8 +254,8 @@ window.StudioGame.App = (function() {
 
           <div class="roadmap-box">
             <div class="roadmap-title">Current Development Milestone:</div>
-            <div class="roadmap-val highlight-emerald">v0.2 Wife Autonomous Career Engine &bull; Complete</div>
-            <div class="roadmap-next">Next Target: <strong>v0.3 Actions & Photoshoot Contracts</strong></div>
+            <div class="roadmap-val highlight-emerald">v0.3 Actions & Commercial Pipeline &bull; Complete</div>
+            <div class="roadmap-next">Next Target: <strong>v0.4 Talent Roster (300+ Actors & Actresses)</strong></div>
           </div>
         </div>
 

@@ -1950,3 +1950,597 @@ html, body {
   line-height: 1.4;
 }
 
+/* ---------------- Version 0.3: Actions & Commercial Pipeline Styles ---------------- */
+.actions-page-container {
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 24px 0;
+}
+
+.actions-header {
+  position: sticky;
+  top: 0;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(16, 23, 38, 0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.actions-header-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.actions-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.actions-header-stats {
+  display: flex;
+  gap: 8px;
+}
+
+.header-stat-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-subtle);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.stat-pill-label {
+  font-size: 9px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.stat-pill-val {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Subnav Tabs */
+.actions-subnav-tabs {
+  display: flex;
+  padding: 0 16px;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.actions-subnav-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.actions-tab-btn {
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.actions-tab-btn.active {
+  color: var(--accent-emerald);
+}
+
+.actions-tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent-emerald);
+  border-radius: 2px 2px 0 0;
+}
+
+.actions-body {
+  padding: 16px;
+}
+
+/* RFP Cards in Bids Tab */
+.rfp-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rfp-card {
+  padding: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  transition: border-color 0.15s ease;
+}
+
+.rfp-card:hover {
+  border-color: var(--border-highlight);
+}
+
+.rfp-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.rfp-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rfp-genre-icon {
+  font-size: 26px;
+}
+
+.rfp-client-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.rfp-budget-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.rfp-budget-val {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.rfp-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.rfp-rivals-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.rivals-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.rivals-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.rival-chip {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.rfp-bid-control {
+  padding: 10px 12px;
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bid-slider-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.bid-amount-display {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.form-range {
+  width: 100%;
+  accent-color: var(--accent-amber);
+  cursor: pointer;
+}
+
+.slider-extremes {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.rfp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 6px;
+}
+
+.rfp-duration {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Pipeline Cards */
+.pipeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pipeline-card {
+  padding: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pipeline-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.pipeline-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pipeline-icon {
+  font-size: 24px;
+}
+
+.pipeline-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.pipeline-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.pipeline-payout {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.pipeline-stage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.stage-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--accent-cyan);
+}
+
+.pipeline-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.pipeline-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-emerald));
+  border-radius: var(--radius-full);
+}
+
+.completed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.completed-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.completed-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.completed-date {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.completed-payout {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Custom Commission Creator */
+.format-toggle-group {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.btn-toggle {
+  min-height: 44px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-toggle.active {
+  background: var(--bg-card-hover);
+  border-color: var(--accent-emerald);
+  color: var(--accent-emerald);
+}
+
+.talent-choice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.talent-starter-card {
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.talent-starter-card:hover {
+  background: var(--bg-card-hover);
+}
+
+.talent-starter-card.selected {
+  border-color: var(--accent-indigo);
+  background: rgba(99, 102, 241, 0.12);
+  box-shadow: 0 0 10px var(--accent-indigo-glow);
+}
+
+.talent-starter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.talent-starter-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.talent-starter-fee {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.talent-starter-cat {
+  font-size: 11px;
+  color: var(--accent-cyan);
+}
+
+.talent-starter-bio {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 3px 0;
+}
+
+.talent-starter-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+/* Itemized Cost Bill Card (Section 3.25) */
+.cost-bill-card {
+  border: 1px solid var(--accent-emerald);
+  background: linear-gradient(135deg, rgba(16, 23, 38, 0.98), rgba(21, 31, 50, 0.98));
+}
+
+.bill-line-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.bill-line-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 3px 0;
+}
+
+.bill-item-note {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.bill-item-val {
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.discount-row {
+  color: var(--accent-emerald);
+}
+
+.bill-divider {
+  height: 1px;
+  background: var(--border-highlight);
+  margin: 6px 0;
+}
+
+.bill-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 4px 0;
+}
+
+.total-val {
+  font-size: 18px;
+}
+
+.bill-projection-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.bill-cash-impact-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+/* Upgrades Catalog */
+.upgrades-catalog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.upgrade-card {
+  padding: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.upgrade-card.is-installed {
+  border-color: var(--accent-emerald);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.upgrade-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.upgrade-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.upgrade-icon {
+  font-size: 26px;
+}
+
+.upgrade-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.upgrade-cost {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.upgrade-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.upgrade-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.meta-label {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.meta-val {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.upgrade-perk-line {
+  font-size: 12px;
+  color: var(--accent-cyan);
+}
+
+

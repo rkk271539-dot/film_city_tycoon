@@ -40,14 +40,31 @@ window.StudioGame.Systems.Finance = (function() {
    * 4. Update overall net worth
    */
   function dailyTick(state) {
-    // 1. Studio daily overhead (base ₹500/day ≈ ₹15,000/month)
+    // 1. Studio daily overhead (base ₹500/day ≈ ₹15,000/month + installed upgrades maintenance)
     let dailyOverhead = 500;
+
+    // Additional overhead from installed upgrades
+    if (state.studio.upgrades && window.StudioGame.Data.Upgrades) {
+      state.studio.upgrades.forEach(upgId => {
+        const upg = window.StudioGame.Data.Upgrades.find(u => u.id === upgId);
+        if (upg && upg.dailyOverhead) {
+          dailyOverhead += upg.dailyOverhead;
+        }
+      });
+    }
+
+    // Wife Perk: Studio Chief of Finance cuts daily overhead by 15%
+    if (state.wife && state.wife.currentRoleId === 'studio_finance_head') {
+      dailyOverhead *= 0.85;
+    }
+
+    // Founder Skill: Brilliant Manager cuts costs by 25%
     if (state.player.skill === 'brilliant_manager') {
-      dailyOverhead *= 0.75; // 25% cost reduction
+      dailyOverhead *= 0.75;
     }
 
     // Deduct overhead from studio cash
-    state.studio.cash -= dailyOverhead;
+    state.studio.cash = Math.max(0, state.studio.cash - dailyOverhead);
     state.studio.expensesMonth = (state.studio.expensesMonth || 0) + dailyOverhead;
 
     // 2. Liquid interest on player cash (4.2% p.a. risk-free liquid yield)

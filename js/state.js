@@ -7,7 +7,7 @@
 window.StudioGame = window.StudioGame || {};
 
 window.StudioGame.State = (function() {
-  const CURRENT_VERSION = '0.2.0';
+  const CURRENT_VERSION = '0.3.0';
   const STORAGE_PREFIX = 'filmy_tycoon_';
   const AUTOSAVE_KEY = STORAGE_PREFIX + 'autosave';
   const AUTOSAVE_HISTORY_KEY = STORAGE_PREFIX + 'autosave_history';
@@ -88,8 +88,13 @@ window.StudioGame.State = (function() {
         ipValue: 0,
         netWorth: 50000000,
         expensesMonth: 0,
-        activeProjectsCount: 0
+        reputation: 42,
+        maxConcurrentProjects: 2,
+        projects: [],
+        completedProjects: [],
+        upgrades: []
       },
+      bids: [],
       feed: [
         {
           id: 'evt_init',
@@ -111,6 +116,10 @@ window.StudioGame.State = (function() {
         }
       ]
     };
+
+    if (window.StudioGame.Systems.Projects) {
+      window.StudioGame.Systems.Projects.ensureProjectState(state);
+    }
 
     return state;
   }
@@ -342,6 +351,9 @@ window.StudioGame.State = (function() {
     }
     rawState.studio = rawState.studio || {};
     rawState.studio.cash = rawState.studio.cash !== undefined ? rawState.studio.cash : 30000000;
+    if (window.StudioGame.Systems.Projects) {
+      window.StudioGame.Systems.Projects.ensureProjectState(rawState);
+    }
     rawState.feed = rawState.feed || [];
     rawState.history = rawState.history || [];
 

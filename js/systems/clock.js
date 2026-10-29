@@ -83,6 +83,11 @@ window.StudioGame.Systems.Clock = (function() {
         window.StudioGame.Systems.Wife.dailyTick(state);
       }
 
+      // 2c. Production Pipeline & Commercial Shoots tick
+      if (window.StudioGame.Systems.Projects) {
+        window.StudioGame.Systems.Projects.dailyTick(state);
+      }
+
       // 3. Ambient Industry Gossip / News roll
       if (Math.random() < 0.12 && window.StudioGame.Data.Events) {
         const rumors = window.StudioGame.Data.Events.dailyRumors;

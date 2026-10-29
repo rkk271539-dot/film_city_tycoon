@@ -209,8 +209,8 @@ window.StudioGame.UI.Dashboard = (function() {
               </div>
               <div class="mini-stat-card">
                 <span class="mini-stat-label">Active Shoots</span>
-                <span class="mini-stat-val highlight-cyan">0 Projects</span>
-                <span class="mini-stat-sub">Shoots unlock in v0.3</span>
+                <span class="mini-stat-val highlight-cyan">${(state.studio.projects && state.studio.projects.length) ? state.studio.projects.length : 0} Running</span>
+                <span class="mini-stat-sub">Sound Stage Floor</span>
               </div>
               <div class="mini-stat-card">
                 <span class="mini-stat-label">Outstanding Debt</span>

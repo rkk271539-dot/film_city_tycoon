@@ -8,14 +8,16 @@ window.StudioGame.UI = window.StudioGame.UI || {};
 
 window.StudioGame.UI.NewsScreen = (function() {
   let activeFilter = 'all'; // 'all', 'box_office', 'scandals', 'awards'
+  let newsSearchQuery = '';
 
   function render(container, state, callbacks = {}) {
+    if (!container || !state) return;
     window.StudioGame.Systems.News.ensureNewsState(state);
 
     const feed = state.feed || [];
     const awards = state.awards || { trophies: [] };
 
-    const filtered = feed.filter(item => {
+    let filtered = feed.filter(item => {
       if (activeFilter === 'box_office') {
         return item.category && (item.category.includes('Box Office') || item.category.includes('Release Clash'));
       }
@@ -28,112 +30,138 @@ window.StudioGame.UI.NewsScreen = (function() {
       return true;
     });
 
+    if (newsSearchQuery.trim()) {
+      const q = newsSearchQuery.toLowerCase().trim();
+      filtered = filtered.filter(item =>
+        (item.title && item.title.toLowerCase().includes(q)) ||
+        (item.body && item.body.toLowerCase().includes(q)) ||
+        (item.category && item.category.toLowerCase().includes(q))
+      );
+    }
+
     container.innerHTML = `
-      <div class="screen-container">
-        <!-- Sticky Top Bar -->
-        <header class="app-top-bar">
-          <div class="top-bar-left">
-            <div class="studio-brand">
-              <span class="studio-logo-icon">📰</span>
-              <div class="studio-titles">
-                <h1 class="studio-title-text">Trade Wire & Scandals</h1>
-                <span class="studio-subtitle-text">Bollywood Insider &bull; ${awards.trophies.length} Trophies Won</span>
-              </div>
+      <div class="screen-page-container">
+        <!-- Unified Top App Bar -->
+        <header class="top-nav-bar">
+          <div class="top-user-wrap">
+            <div class="avatar-small">
+              <img src="${state.player.avatar}" alt="${state.player.name}" class="avatar-img-round" />
+            </div>
+            <div class="top-user-meta">
+              <div class="top-player-name">${state.player.name}</div>
+              <div class="top-studio-tag">${state.studio.name} &bull; Trade Wire & Insider</div>
             </div>
           </div>
 
-          <div class="top-bar-right">
-            <div class="turn-controls">
-              <button class="turn-btn" id="btnNextDay" title="Advance 1 Day">
-                <span class="turn-icon">▶</span>
-                <span class="turn-label">1D</span>
-              </button>
-              <button class="turn-btn" id="btnPlus7Days" title="Advance 7 Days">
-                <span class="turn-icon">⏩</span>
-                <span class="turn-label">+7D</span>
-              </button>
-              <button class="turn-btn" id="btnPlus30Days" title="Advance 30 Days">
-                <span class="turn-icon">⏭</span>
-                <span class="turn-label">+30D</span>
-              </button>
-              <button class="turn-btn highlight-gold" id="btnNextEvent" title="Advance to Next Milestone">
-                <span class="turn-icon">⚡</span>
-                <span class="turn-label">Event</span>
-              </button>
+          <div class="top-date-wrap">
+            <div class="date-badge">
+              <span class="calendar-icon">📅</span>
+              <span class="calendar-text">Day ${state.clock.day} &bull; ${state.clock.formattedDate}</span>
             </div>
+          </div>
+
+          <div class="top-actions">
+            <button class="btn-icon" id="btnOpenSaveManager" title="Save / Settings">
+              💾
+            </button>
           </div>
         </header>
 
-        <!-- Trophy Shelf Banner -->
-        <div class="trophy-shelf-banner">
-          <div class="trophy-shelf-left">
-            <span class="shelf-icon">🏆</span>
-            <div class="shelf-text">
-              <h3 class="shelf-title">Studio Trophy Showcase</h3>
-              <p class="shelf-sub">
-                Annual Filmfare & National Awards gala takes place every <strong>December 31st</strong>.
-                Winners receive cash purses, national acclaim, and massive stock rallies.
-              </p>
+        <!-- Unified Sticky Turn Controls Bar -->
+        <section class="turn-control-bar">
+          <div class="turn-bar-inner">
+            <button class="btn-turn-primary" id="btnNextDay" title="Advance 1 in-game day">
+              <span class="turn-btn-glow"></span>
+              <span class="turn-btn-icon">▶</span>
+              <span class="turn-btn-text">Next Day</span>
+            </button>
+            <div class="turn-fast-forward-group">
+              <button class="btn-fast-forward" id="btnAdvanceWeek" title="Advance 1 full week">+7D</button>
+              <button class="btn-fast-forward" id="btnAdvanceMonth" title="Advance 1 month">+30D</button>
+              <button class="btn-fast-forward btn-event-advance" id="btnAdvanceEvent" title="Fast forward until something happens">
+                ⚡ Event
+              </button>
             </div>
           </div>
-          <div class="trophy-count-pill">
-            <span class="count-num">${awards.trophies.length}</span>
-            <span class="count-lbl">Golden Trophies</span>
-          </div>
-        </div>
+        </section>
 
-        ${awards.trophies.length > 0 ? `
-          <div class="trophies-display-row">
-            ${awards.trophies.map(t => `
-              <div class="trophy-item-card">
-                <span class="trophy-gold-icon">🏆</span>
-                <div class="trophy-item-info">
-                  <span class="trophy-year">${t.year}</span>
-                  <strong class="trophy-cat">${t.category}</strong>
-                  <span class="trophy-proj">${t.project || t.recipient || state.studio.name}</span>
-                </div>
+        <!-- Main Content Area -->
+        <main class="dashboard-content">
+          <!-- Trophy Shelf Banner -->
+          <div class="trophy-shelf-banner">
+            <div class="trophy-shelf-left">
+              <span class="shelf-icon">🏆</span>
+              <div class="shelf-text">
+                <h3 class="shelf-title">National Studio Trophy Cabinet</h3>
+                <p class="shelf-sub">
+                  Annual National Cinema & Filmfare Awards gala takes place every <strong>December 31st</strong>.
+                  Winners receive massive cash purses, national prestige, and stock market rallies.
+                </p>
               </div>
-            `).join('')}
+            </div>
+            <div class="trophy-count-pill">
+              <span class="count-num">${awards.trophies.length}</span>
+              <span class="count-lbl">Trophies Won</span>
+            </div>
           </div>
-        ` : ''}
 
-        <!-- Filter Tabs -->
-        <div class="news-filter-tabs">
-          <button class="news-tab-btn ${activeFilter === 'all' ? 'active' : ''}" data-filter="all">
-            🌐 All News Wire
-          </button>
-          <button class="news-tab-btn ${activeFilter === 'box_office' ? 'active' : ''}" data-filter="box_office">
-            🎟️ Box Office Reports
-          </button>
-          <button class="news-tab-btn ${activeFilter === 'scandals' ? 'active' : ''}" data-filter="scandals">
-            📸 Paparazzi & Hotel Leaks
-          </button>
-          <button class="news-tab-btn ${activeFilter === 'awards' ? 'active' : ''}" data-filter="awards">
-            🏆 Galas & Milestones
-          </button>
-        </div>
-
-        <!-- News Feed Stream -->
-        <div class="news-feed-stream">
-          ${filtered.length > 0 ? filtered.map(item => `
-            <div class="news-bulletin-card">
-              <div class="bulletin-header">
-                <span class="bulletin-icon">${item.icon || '📰'}</span>
-                <div class="bulletin-meta">
-                  <span class="badge ${getCategoryBadgeClass(item.category)}">${item.category || 'General'}</span>
-                  <span class="bulletin-date">${item.date || `Day ${item.day}`}</span>
+          ${awards.trophies.length > 0 ? `
+            <div class="trophies-display-row">
+              ${awards.trophies.map(t => `
+                <div class="trophy-item-card">
+                  <span class="trophy-gold-icon">🏆</span>
+                  <div class="trophy-item-info">
+                    <span class="trophy-year">${t.year}</span>
+                    <strong class="trophy-cat">${t.category}</strong>
+                    <span class="trophy-proj">${t.project || t.recipient || state.studio.name}</span>
+                  </div>
                 </div>
+              `).join('')}
+            </div>
+          ` : ''}
+
+          <!-- Filter & Search Toolbar -->
+          <div class="news-toolbar-card">
+            <div class="news-search-row">
+              <div class="search-input-wrap">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="newsSearchInput" class="form-input search-input-padded" placeholder="Search trade wire, leaks, box office reports..." value="${escapeHtml(newsSearchQuery)}">
+                ${newsSearchQuery ? '<button class="clear-search-btn" id="btnClearNewsSearch">&times;</button>' : ''}
               </div>
 
-              <h3 class="bulletin-title">${escapeHtml(item.title)}</h3>
-              <p class="bulletin-body">${escapeHtml(item.body)}</p>
+              <div class="news-filter-pills">
+                <button class="filter-pill ${activeFilter === 'all' ? 'active' : ''}" data-filter="all">🌐 All Bulletins</button>
+                <button class="filter-pill ${activeFilter === 'box_office' ? 'active' : ''}" data-filter="box_office">🎟️ Box Office</button>
+                <button class="filter-pill ${activeFilter === 'scandals' ? 'active' : ''}" data-filter="scandals">📸 Paparazzi & Gossip</button>
+                <button class="filter-pill ${activeFilter === 'awards' ? 'active' : ''}" data-filter="awards">🏆 Awards & Galas</button>
+              </div>
             </div>
-          `).join('') : `
-            <div class="empty-news-card text-center">
-              <p>No reports currently available in this wire filter.</p>
-            </div>
-          `}
-        </div>
+          </div>
+
+          <!-- News Feed Stream -->
+          <div class="news-feed-stream">
+            ${filtered.length > 0 ? filtered.map(item => `
+              <div class="news-bulletin-card">
+                <div class="bulletin-header">
+                  <span class="bulletin-icon">${item.icon || '📰'}</span>
+                  <div class="bulletin-meta">
+                    <span class="badge ${getCategoryBadgeClass(item.category)}">${item.category || 'General'}</span>
+                    <span class="bulletin-date">${item.date || `Day ${item.day}`}</span>
+                  </div>
+                </div>
+
+                <h3 class="bulletin-title">${escapeHtml(item.title)}</h3>
+                <p class="bulletin-body">${escapeHtml(item.body)}</p>
+              </div>
+            `).join('') : `
+              <div class="empty-news-card text-center">
+                <span class="empty-icon">📰</span>
+                <h4>No Wire Dispatches Found</h4>
+                <p>No trade reports or insider dispatches match the selected filter.</p>
+              </div>
+            `}
+          </div>
+        </main>
       </div>
     `;
 
@@ -152,12 +180,35 @@ window.StudioGame.UI.NewsScreen = (function() {
   function attachEventListeners(container, state, callbacks) {
     // Clock turns
     container.querySelector('#btnNextDay')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(1));
-    container.querySelector('#btnPlus7Days')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(7));
-    container.querySelector('#btnPlus30Days')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(30));
-    container.querySelector('#btnNextEvent')?.addEventListener('click', () => callbacks.onAdvanceToEvent?.());
+    container.querySelector('#btnAdvanceWeek')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(7));
+    container.querySelector('#btnAdvanceMonth')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(30));
+    container.querySelector('#btnAdvanceEvent')?.addEventListener('click', () => callbacks.onAdvanceToEvent?.());
 
-    // Filter tabs
-    container.querySelectorAll('.news-tab-btn').forEach(btn => {
+    container.querySelector('#btnOpenSaveManager')?.addEventListener('click', () => {
+      window.StudioGame.UI.SaveModal.open(state, callbacks.onStateChange);
+    });
+
+    // Search input
+    const searchInput = container.querySelector('#newsSearchInput');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        newsSearchQuery = e.target.value;
+        render(container, state, callbacks);
+        const refocused = container.querySelector('#newsSearchInput');
+        if (refocused) {
+          refocused.focus();
+          refocused.setSelectionRange(newsSearchQuery.length, newsSearchQuery.length);
+        }
+      });
+    }
+
+    container.querySelector('#btnClearNewsSearch')?.addEventListener('click', () => {
+      newsSearchQuery = '';
+      render(container, state, callbacks);
+    });
+
+    // Filter pills
+    container.querySelectorAll('[data-filter]').forEach(btn => {
       btn.addEventListener('click', () => {
         activeFilter = btn.getAttribute('data-filter');
         render(container, state, callbacks);

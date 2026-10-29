@@ -9,10 +9,14 @@ window.StudioGame.UI = window.StudioGame.UI || {};
 
 window.StudioGame.UI.MarketScreen = (function() {
   let activeSubTab = 'exchange'; // 'exchange', 'portfolio', 'ipo'
+  let marketSearchQuery = '';
+  let activeSectorFilter = 'all';
 
   function render(container, state, callbacks = {}) {
+    if (!container || !state) return;
     window.StudioGame.Systems.Market.ensureMarketState(state);
 
+    const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
     const market = state.market;
     const portfolio = market.portfolio || [];
     const companies = market.companies || [];
@@ -29,102 +33,162 @@ window.StudioGame.UI.MarketScreen = (function() {
     const portfolioProfit = portfolioTotalVal - portfolioTotalCost;
     const portfolioProfitPct = portfolioTotalCost > 0 ? ((portfolioProfit / portfolioTotalCost) * 100).toFixed(1) : 0;
 
+    // Filter companies
+    let filteredCompanies = [...companies];
+    if (marketSearchQuery.trim()) {
+      const q = marketSearchQuery.toLowerCase().trim();
+      filteredCompanies = filteredCompanies.filter(c =>
+        c.name.toLowerCase().includes(q) ||
+        c.ticker.toLowerCase().includes(q) ||
+        (c.sector && c.sector.toLowerCase().includes(q))
+      );
+    }
+
+    if (activeSectorFilter !== 'all') {
+      filteredCompanies = filteredCompanies.filter(c => {
+        if (!c.sector) return false;
+        const s = c.sector.toLowerCase();
+        if (activeSectorFilter === 'multiplex') return s.includes('theat') || s.includes('multiplex') || s.includes('exhibit');
+        if (activeSectorFilter === 'production') return s.includes('film') || s.includes('studio') || s.includes('product');
+        if (activeSectorFilter === 'broadcasting') return s.includes('broadcast') || s.includes('tv') || s.includes('tele');
+        if (activeSectorFilter === 'streaming') return s.includes('stream') || s.includes('music') || s.includes('digital');
+        if (activeSectorFilter === 'vfx') return s.includes('vfx') || s.includes('animat') || s.includes('tech');
+        return true;
+      });
+    }
+
     container.innerHTML = `
-      <div class="screen-container">
-        <!-- Sticky Top Bar -->
-        <header class="app-top-bar">
-          <div class="top-bar-left">
-            <div class="studio-brand">
-              <span class="studio-logo-icon">📈</span>
-              <div class="studio-titles">
-                <h1 class="studio-title-text">Dalal Street</h1>
-                <span class="studio-subtitle-text">Nifty Media Index: <strong>${market.niftyMediaIndex.toLocaleString('en-IN')}</strong> &bull; &plusmn;8% Circuit Filter</span>
-              </div>
+      <div class="screen-page-container">
+        <!-- Unified Top App Bar -->
+        <header class="top-nav-bar">
+          <div class="top-user-wrap">
+            <div class="avatar-small">
+              <img src="${state.player.avatar}" alt="${state.player.name}" class="avatar-img-round" />
+            </div>
+            <div class="top-user-meta">
+              <div class="top-player-name">${state.player.name}</div>
+              <div class="top-studio-tag">${state.studio.name} &bull; Dalal Street</div>
             </div>
           </div>
 
-          <div class="top-bar-right">
-            <div class="turn-controls">
-              <button class="turn-btn" id="btnNextDay" title="Advance 1 Day">
-                <span class="turn-icon">▶</span>
-                <span class="turn-label">1D</span>
-              </button>
-              <button class="turn-btn" id="btnPlus7Days" title="Advance 7 Days">
-                <span class="turn-icon">⏩</span>
-                <span class="turn-label">+7D</span>
-              </button>
-              <button class="turn-btn" id="btnPlus30Days" title="Advance 30 Days">
-                <span class="turn-icon">⏭</span>
-                <span class="turn-label">+30D</span>
-              </button>
-              <button class="turn-btn highlight-gold" id="btnNextEvent" title="Advance to Next Milestone">
-                <span class="turn-icon">⚡</span>
-                <span class="turn-label">Event</span>
-              </button>
+          <div class="top-date-wrap">
+            <div class="date-badge">
+              <span class="calendar-icon">📅</span>
+              <span class="calendar-text">Day ${state.clock.day} &bull; ${state.clock.formattedDate}</span>
             </div>
+          </div>
+
+          <div class="top-actions">
+            <button class="btn-icon" id="btnOpenSaveManager" title="Save / Settings">
+              💾
+            </button>
           </div>
         </header>
 
-        <!-- Market Overview Bar -->
-        <div class="market-overview-grid">
-          <div class="market-stat-card">
-            <span class="m-stat-label">Nifty Media Index</span>
-            <span class="m-stat-val highlight-gold">${market.niftyMediaIndex.toLocaleString('en-IN')}</span>
-            <span class="m-stat-sub">Daily Cap: -8% to +8%</span>
+        <!-- Unified Sticky Turn Controls Bar -->
+        <section class="turn-control-bar">
+          <div class="turn-bar-inner">
+            <button class="btn-turn-primary" id="btnNextDay" title="Advance 1 in-game day">
+              <span class="turn-btn-glow"></span>
+              <span class="turn-btn-icon">▶</span>
+              <span class="turn-btn-text">Next Day</span>
+            </button>
+            <div class="turn-fast-forward-group">
+              <button class="btn-fast-forward" id="btnAdvanceWeek" title="Advance 1 full week">+7D</button>
+              <button class="btn-fast-forward" id="btnAdvanceMonth" title="Advance 1 month">+30D</button>
+              <button class="btn-fast-forward btn-event-advance" id="btnAdvanceEvent" title="Fast forward until something happens">
+                ⚡ Event
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Main Content Stream -->
+        <main class="dashboard-content">
+          <!-- Market Overview Ribbon -->
+          <div class="market-overview-grid">
+            <div class="market-stat-card">
+              <span class="m-stat-label">NIFTY MEDIA INDEX</span>
+              <span class="m-stat-val highlight-gold font-mono">${market.niftyMediaIndex.toLocaleString('en-IN')}</span>
+              <span class="m-stat-sub highlight-amber">Strict &plusmn;8% Circuit Cap</span>
+            </div>
+
+            <div class="market-stat-card">
+              <span class="m-stat-label">PORTFOLIO VALUATION</span>
+              <span class="m-stat-val highlight-emerald font-mono">${formatRupees(portfolioTotalVal)}</span>
+              <span class="m-stat-sub ${portfolioProfit >= 0 ? 'highlight-emerald' : 'highlight-rose'}">
+                ${portfolioProfit >= 0 ? '+' : ''}${formatRupees(portfolioProfit)} (${portfolioProfitPct}%)
+              </span>
+            </div>
+
+            <div class="market-stat-card">
+              <span class="m-stat-label">TRADING CASH</span>
+              <span class="m-stat-val font-mono">${formatRupees(state.player.cash)}</span>
+              <span class="m-stat-sub">Liquid Funds for Equities</span>
+            </div>
+
+            <div class="market-stat-card">
+              <span class="m-stat-label">STUDIO IPO LISTING</span>
+              <span class="m-stat-val ${market.isStudioPublic ? 'highlight-cyan' : 'highlight-amber'}">
+                ${market.isStudioPublic ? `Listed (${market.studioTicker})` : 'Private Enterprise'}
+              </span>
+              <span class="m-stat-sub">${market.isStudioPublic ? `Public Float: ${(market.studioPublicFloatPct * 100).toFixed(0)}%` : 'Eligible for BSE/NSE IPO'}</span>
+            </div>
           </div>
 
-          <div class="market-stat-card">
-            <span class="m-stat-label">Portfolio Value</span>
-            <span class="m-stat-val highlight-emerald">${window.StudioGame.Systems.Finance.formatRupees(portfolioTotalVal)}</span>
-            <span class="m-stat-sub ${portfolioProfit >= 0 ? 'highlight-emerald' : 'highlight-rose'}">
-              ${portfolioProfit >= 0 ? '+' : ''}${window.StudioGame.Systems.Finance.formatRupees(portfolioProfit)} (${portfolioProfitPct}%)
-            </span>
+          <!-- Market Navigation Tabs -->
+          <div class="market-nav-tabs-wrapper">
+            <div class="market-nav-tabs">
+              <button class="market-tab-btn ${activeSubTab === 'exchange' ? 'active' : ''}" data-subtab="exchange">
+                📊 Dalal Street Exchange (${companies.length})
+              </button>
+              <button class="market-tab-btn ${activeSubTab === 'portfolio' ? 'active' : ''}" data-subtab="portfolio">
+                💼 My Holdings (${portfolio.length})
+              </button>
+              <button class="market-tab-btn ${activeSubTab === 'ipo' ? 'active' : ''}" data-subtab="ipo">
+                🔔 Studio IPO Center
+              </button>
+            </div>
           </div>
 
-          <div class="market-stat-card">
-            <span class="m-stat-label">Personal Cash</span>
-            <span class="m-stat-val">${window.StudioGame.Systems.Finance.formatRupees(state.player.cash)}</span>
-            <span class="m-stat-sub">Trading Funds</span>
+          <!-- Tab Viewport -->
+          <div class="market-tab-content">
+            ${activeSubTab === 'exchange' ? renderExchangeList(filteredCompanies, companies, state) : ''}
+            ${activeSubTab === 'portfolio' ? renderPortfolioList(portfolio, companies, state) : ''}
+            ${activeSubTab === 'ipo' ? renderIPOCenter(state) : ''}
           </div>
-
-          <div class="market-stat-card">
-            <span class="m-stat-label">Studio IPO Status</span>
-            <span class="m-stat-val ${market.isStudioPublic ? 'highlight-cyan' : 'highlight-amber'}">
-              ${market.isStudioPublic ? `Listed (${market.studioTicker})` : 'Private Enterprise'}
-            </span>
-            <span class="m-stat-sub">${market.isStudioPublic ? `Float: ${(market.studioPublicFloatPct * 100).toFixed(0)}%` : 'Ready for Listing'}</span>
-          </div>
-        </div>
-
-        <!-- Sub Tabs Navigation -->
-        <div class="market-nav-tabs">
-          <button class="market-tab-btn ${activeSubTab === 'exchange' ? 'active' : ''}" data-subtab="exchange">
-            📊 Dalal Street Exchange (${companies.length})
-          </button>
-          <button class="market-tab-btn ${activeSubTab === 'portfolio' ? 'active' : ''}" data-subtab="portfolio">
-            💼 My Holdings (${portfolio.length})
-          </button>
-          <button class="market-tab-btn ${activeSubTab === 'ipo' ? 'active' : ''}" data-subtab="ipo">
-            🔔 Studio IPO Center
-          </button>
-        </div>
-
-        <!-- Tab Content Viewport -->
-        <div class="market-tab-content">
-          ${activeSubTab === 'exchange' ? renderExchangeList(companies, state) : ''}
-          ${activeSubTab === 'portfolio' ? renderPortfolioList(portfolio, companies, state) : ''}
-          ${activeSubTab === 'ipo' ? renderIPOCenter(state) : ''}
-        </div>
+        </main>
       </div>
     `;
 
     attachEventListeners(container, state, callbacks);
   }
 
-  function renderExchangeList(companies, state) {
+  function renderExchangeList(filteredCompanies, allCompanies, state) {
     return `
+      <!-- Search & Sector Filter Toolbar -->
+      <div class="market-toolbar-card">
+        <div class="market-search-row">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="marketSearchInput" class="form-input search-input-padded" placeholder="Search by ticker symbol (e.g. PVR, ZEE) or company name..." value="${escapeHtml(marketSearchQuery)}">
+            ${marketSearchQuery ? '<button class="clear-search-btn" id="btnClearMarketSearch">&times;</button>' : ''}
+          </div>
+
+          <div class="sector-filter-pills">
+            <button class="filter-pill ${activeSectorFilter === 'all' ? 'active' : ''}" data-sector="all">All Sectors (${allCompanies.length})</button>
+            <button class="filter-pill ${activeSectorFilter === 'multiplex' ? 'active' : ''}" data-sector="multiplex">🍿 Multiplex</button>
+            <button class="filter-pill ${activeSectorFilter === 'production' ? 'active' : ''}" data-sector="production">🎬 Production</button>
+            <button class="filter-pill ${activeSectorFilter === 'broadcasting' ? 'active' : ''}" data-sector="broadcasting">📺 Television</button>
+            <button class="filter-pill ${activeSectorFilter === 'streaming' ? 'active' : ''}" data-sector="streaming">🎧 OTT & Music</button>
+            <button class="filter-pill ${activeSectorFilter === 'vfx' ? 'active' : ''}" data-sector="vfx">💻 VFX & Tech</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stocks List -->
       <div class="market-stocks-list">
-        ${companies.map(comp => {
+        ${filteredCompanies.length > 0 ? filteredCompanies.map(comp => {
           const isUp = comp.dayChangePct >= 0;
           const isCircuit = Math.abs(comp.dayChangePct) >= 7.8;
           const demandText = window.StudioGame.Systems.Market.getDemandLabel(comp.buyPressure || 50);
@@ -133,15 +197,18 @@ window.StudioGame.UI.MarketScreen = (function() {
             <div class="stock-item-card" data-ticker="${comp.ticker}">
               <div class="stock-item-left">
                 <div class="stock-ticker-row">
-                  <span class="stock-ticker-badge">${comp.ticker}</span>
+                  <span class="stock-ticker-badge font-mono">${comp.ticker}</span>
                   <h3 class="stock-company-name">${escapeHtml(comp.name)}</h3>
-                  ${isCircuit ? '<span class="badge badge-amber pulse">CIRCUIT BREAKER (&plusmn;8%)</span>' : ''}
+                  ${isCircuit ? '<span class="badge badge-amber pulse text-xs">⚡ &plusmn;8% CIRCUIT</span>' : ''}
                 </div>
                 <div class="stock-sector-desc">${escapeHtml(comp.sector)}</div>
 
                 <!-- Order Book Pressure Gauge -->
                 <div class="order-pressure-row">
-                  <span class="pressure-label">${demandText}</span>
+                  <div class="pressure-header-line">
+                    <span class="pressure-label">${demandText}</span>
+                    <span class="pressure-pct-tag font-mono">${comp.buyPressure}% Buy &bull; ${100 - comp.buyPressure}% Sell</span>
+                  </div>
                   <div class="pressure-bar-wrap" title="Buy Pressure: ${comp.buyPressure}%, Sell Pressure: ${100 - comp.buyPressure}%">
                     <div class="pressure-bar-buy" style="width: ${comp.buyPressure}%"></div>
                     <div class="pressure-bar-sell" style="width: ${100 - comp.buyPressure}%"></div>
@@ -150,80 +217,101 @@ window.StudioGame.UI.MarketScreen = (function() {
               </div>
 
               <div class="stock-item-right">
-                <div class="stock-price-val">₹${comp.sharePrice.toLocaleString('en-IN')}</div>
-                <div class="stock-change-pill ${isUp ? 'change-up' : 'change-down'}">
+                <div class="stock-price-val font-mono">₹${comp.sharePrice.toLocaleString('en-IN')}</div>
+                <div class="stock-change-pill font-mono ${isUp ? 'change-up' : 'change-down'}">
                   ${isUp ? '▲ +' : '▼ '}${comp.dayChangePct}%
                 </div>
                 <div class="stock-tech-snippet">
-                  <span>RSI: <strong>${comp.rsi || 50}</strong></span>
+                  <span>RSI: <strong class="${comp.rsi > 70 ? 'highlight-rose' : (comp.rsi < 30 ? 'highlight-emerald' : '')}">${comp.rsi || 50}</strong></span>
                   <span>Trend: <strong>${formatTrend(comp.trend)}</strong></span>
                 </div>
-                <button class="btn btn-sm btn-primary btn-trade-stock" data-ticker="${comp.ticker}">
-                  Trade / Analyze
+                <button class="btn btn-sm btn-outline-gold btn-trade-stock" data-ticker="${comp.ticker}">
+                  Trade / Chart
                 </button>
               </div>
             </div>
           `;
-        }).join('')}
+        }).join('') : `
+          <div class="empty-results-box text-center">
+            <span class="empty-icon">📈</span>
+            <h4>No Equities Found</h4>
+            <p>No listed securities match your search query and sector filter.</p>
+          </div>
+        `}
       </div>
     `;
   }
 
   function renderPortfolioList(portfolio, companies, state) {
+    const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
+
     if (!portfolio || portfolio.length === 0) {
       return `
         <div class="empty-portfolio-card text-center">
           <div class="empty-icon">💼</div>
           <h3 class="empty-title">No Active Stock Holdings</h3>
-          <p class="empty-desc">You have not bought any studio or media shares yet. Visit the Dalal Street Exchange tab to build your investment portfolio.</p>
+          <p class="empty-desc">You do not hold any studio or media shares in your portfolio. Explore the Dalal Street Exchange tab to trade blue-chip Indian entertainment stocks.</p>
         </div>
       `;
     }
 
     return `
-      <div class="portfolio-table-card">
-        <div class="table-header-row">
-          <span class="col-ticker">Company</span>
-          <span class="col-qty">Shares Held</span>
-          <span class="col-avg">Avg Price</span>
-          <span class="col-ltp">LTP</span>
-          <span class="col-pnl">Unrealized P&L</span>
-          <span class="col-act">Action</span>
-        </div>
-        <div class="table-body">
-          ${portfolio.map(h => {
-            const comp = companies.find(c => c.ticker === h.ticker);
-            const ltp = comp ? comp.sharePrice : h.avgBuyPrice;
-            const curVal = h.sharesCount * ltp;
-            const costVal = h.sharesCount * h.avgBuyPrice;
-            const pnl = curVal - costVal;
-            const pnlPct = costVal > 0 ? ((pnl / costVal) * 100).toFixed(1) : 0;
-            const isProfit = pnl >= 0;
+      <div class="portfolio-container">
+        <div class="portfolio-table-card">
+          <div class="table-responsive">
+            <table class="portfolio-table">
+              <thead>
+                <tr>
+                  <th>Ticker / Company</th>
+                  <th>Quantity</th>
+                  <th>Avg Buy Price</th>
+                  <th>Current LTP</th>
+                  <th>Investment Value</th>
+                  <th>Unrealized P&L</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${portfolio.map(h => {
+                  const comp = companies.find(c => c.ticker === h.ticker);
+                  const ltp = comp ? comp.sharePrice : h.avgBuyPrice;
+                  const curVal = h.sharesCount * ltp;
+                  const costVal = h.sharesCount * h.avgBuyPrice;
+                  const pnl = curVal - costVal;
+                  const pnlPct = costVal > 0 ? ((pnl / costVal) * 100).toFixed(1) : 0;
+                  const isProfit = pnl >= 0;
 
-            return `
-              <div class="table-row">
-                <span class="col-ticker">
-                  <strong>${h.ticker}</strong>
-                  <span class="comp-sub-name">${escapeHtml(h.companyName)}</span>
-                </span>
-                <span class="col-qty font-mono">${h.sharesCount.toLocaleString('en-IN')}</span>
-                <span class="col-avg font-mono">₹${h.avgBuyPrice.toLocaleString('en-IN')}</span>
-                <span class="col-ltp font-mono highlight-gold">₹${ltp.toLocaleString('en-IN')}</span>
-                <span class="col-pnl font-mono ${isProfit ? 'highlight-emerald' : 'highlight-rose'}">
-                  ${isProfit ? '+' : ''}${window.StudioGame.Systems.Finance.formatRupees(pnl)} (${pnlPct}%)
-                </span>
-                <span class="col-act">
-                  <button class="btn btn-sm btn-secondary btn-trade-stock" data-ticker="${h.ticker}">Trade</button>
-                </span>
-              </div>
-            `;
-          }).join('')}
+                  return `
+                    <tr class="pf-row">
+                      <td class="td-company">
+                        <div class="pf-company-cell">
+                          <span class="stock-ticker-badge font-mono">${h.ticker}</span>
+                          <strong class="pf-comp-name">${escapeHtml(h.companyName)}</strong>
+                        </div>
+                      </td>
+                      <td class="font-mono font-bold">${h.sharesCount.toLocaleString('en-IN')}</td>
+                      <td class="font-mono text-muted">₹${h.avgBuyPrice.toLocaleString('en-IN')}</td>
+                      <td class="font-mono font-bold highlight-gold">₹${ltp.toLocaleString('en-IN')}</td>
+                      <td class="font-mono font-bold">${formatRupees(curVal)}</td>
+                      <td class="font-mono font-bold ${isProfit ? 'highlight-emerald' : 'highlight-rose'}">
+                        ${isProfit ? '+' : ''}${formatRupees(pnl)} (${pnlPct}%)
+                      </td>
+                      <td>
+                        <button class="btn btn-xs btn-primary btn-trade-stock" data-ticker="${h.ticker}">Trade</button>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     `;
   }
 
   function renderIPOCenter(state) {
+    const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
     const isPublic = state.market.isStudioPublic;
     const canIPO = state.studio.netWorth >= 250000000 && (state.studio.completedProjects || []).length >= 4;
 
@@ -234,11 +322,11 @@ window.StudioGame.UI.MarketScreen = (function() {
           <h2 class="ipo-status-title">${state.studio.name} is Publicly Traded</h2>
           <div class="ipo-status-ticker highlight-gold font-mono">${state.market.studioTicker}</div>
           <p class="ipo-status-desc">
-            Your studio trades on Dalal Street. Current valuation: <strong>${window.StudioGame.Systems.Finance.formatRupees(state.studio.netWorth)}</strong>.
-            You hold <strong>${((state.player.studioEquityPercentage || 1.0) * 100).toFixed(1)}%</strong> of outstanding shares.
+            Your studio trades live on Dalal Street. Current studio valuation: <strong>${formatRupees(state.studio.netWorth)}</strong>.
+            You hold <strong>${((state.player.studioEquityPercentage || 1.0) * 100).toFixed(1)}%</strong> of promoter equity.
           </p>
           <div class="ipo-warning-box">
-            <strong>⚠️ Hostile Takeover Safeguard:</strong> Ensure your equity remains strictly above 50.1% to guarantee perpetual voting control against rival conglomerate takeovers!
+            <strong>⚠️ Hostile Takeover Safeguard:</strong> Maintain promoter equity strictly above 50.1% to guarantee perpetual voting control against rival conglomerate takeover bids!
           </div>
         </div>
       `;
@@ -250,7 +338,7 @@ window.StudioGame.UI.MarketScreen = (function() {
           <span class="ipo-badge">SEBI Listing Pipeline</span>
           <h2 class="ipo-card-title">Initial Public Offering (IPO) Filing</h2>
           <p class="ipo-card-desc">
-            Float a minority stake of ${state.studio.name} on the Bombay & National Stock Exchanges to raise tens of Crores in fresh working capital for blockbuster productions.
+            Float a minority equity stake of ${state.studio.name} on the Bombay & National Stock Exchanges to raise tens of Crores in fresh working capital for blockbuster cinema productions.
           </p>
         </div>
 
@@ -259,15 +347,15 @@ window.StudioGame.UI.MarketScreen = (function() {
             <span class="crit-icon">${state.studio.netWorth >= 250000000 ? '✅' : '❌'}</span>
             <div class="crit-info">
               <span class="crit-title">Minimum Studio Net Worth: ₹25.00 Cr</span>
-              <span class="crit-current">Current: ${window.StudioGame.Systems.Finance.formatRupees(state.studio.netWorth)}</span>
+              <span class="crit-current font-mono">Current: ${formatRupees(state.studio.netWorth)}</span>
             </div>
           </div>
 
           <div class="criteria-item ${(state.studio.completedProjects || []).length >= 4 ? 'met' : 'unmet'}">
             <span class="crit-icon">${(state.studio.completedProjects || []).length >= 4 ? '✅' : '❌'}</span>
             <div class="crit-info">
-              <span class="crit-title">Minimum Track Record: 4 Completed Projects</span>
-              <span class="crit-current">Current: ${(state.studio.completedProjects || []).length} Completed</span>
+              <span class="crit-title">Track Record: Minimum 4 Completed Projects</span>
+              <span class="crit-current font-mono">Current: ${(state.studio.completedProjects || []).length} Completed Films</span>
             </div>
           </div>
         </div>
@@ -276,36 +364,37 @@ window.StudioGame.UI.MarketScreen = (function() {
           <div class="ipo-setup-form">
             <div class="form-group">
               <label class="form-label">Desired Stock Ticker Symbol</label>
-              <input type="text" class="form-control-input" id="ipoTickerInput" value="${state.studio.name.slice(0, 4).toUpperCase()}" maxlength="5">
+              <input type="text" class="form-input font-mono" id="ipoTickerInput" value="${state.studio.name.slice(0, 4).toUpperCase()}" maxlength="5">
+              <span class="form-help-text">3 to 5 capital letters representing your studio on BSE/NSE</span>
             </div>
 
             <div class="form-group">
               <div class="slider-header-row">
                 <label class="form-label">Equity Stake Floated to Public</label>
-                <span class="slider-display-val highlight-gold" id="floatDisplay">20%</span>
+                <span class="slider-display-val highlight-gold font-mono font-bold" id="floatDisplay">20%</span>
               </div>
               <input type="range" class="form-range" id="ipoFloatSlider" min="10" max="35" step="5" value="20">
               <div class="slider-extremes">
                 <span>10% (Conservative)</span>
-                <span>35% (Maximum Dilution)</span>
+                <span>35% (Maximum Capital)</span>
               </div>
             </div>
 
             <div class="ipo-estimate-box">
               <span class="est-label">Estimated Fresh Capital Raised:</span>
-              <span class="est-val highlight-emerald" id="estCapitalDisplay">
-                ${window.StudioGame.Systems.Finance.formatRupees(state.studio.netWorth * 0.20)}
+              <span class="est-val highlight-emerald font-mono font-bold" id="estCapitalDisplay">
+                ${formatRupees(state.studio.netWorth * 0.20)}
               </span>
             </div>
 
             <button class="btn btn-primary btn-full mt-3" id="btnLaunchIPO">
-              Ring The Opening Bell & Go Public
+              🔔 Ring The Opening Bell & Go Public
             </button>
           </div>
         ` : `
           <div class="ipo-locked-notice">
             <span class="locked-icon">🔒</span>
-            <p>Your studio does not meet the SEBI eligibility threshold yet. Expand your studio's net worth and wrap more film productions to unlock Dalal Street listing.</p>
+            <p>Your studio does not meet the SEBI listing criteria yet. Complete more productions and elevate your studio net worth above ₹25.00 Cr to unlock Dalal Street listing.</p>
           </div>
         `}
       </div>
@@ -315,14 +404,45 @@ window.StudioGame.UI.MarketScreen = (function() {
   function attachEventListeners(container, state, callbacks) {
     // Clock turns
     container.querySelector('#btnNextDay')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(1));
-    container.querySelector('#btnPlus7Days')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(7));
-    container.querySelector('#btnPlus30Days')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(30));
-    container.querySelector('#btnNextEvent')?.addEventListener('click', () => callbacks.onAdvanceToEvent?.());
+    container.querySelector('#btnAdvanceWeek')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(7));
+    container.querySelector('#btnAdvanceMonth')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(30));
+    container.querySelector('#btnAdvanceEvent')?.addEventListener('click', () => callbacks.onAdvanceToEvent?.());
+
+    container.querySelector('#btnOpenSaveManager')?.addEventListener('click', () => {
+      window.StudioGame.UI.SaveModal.open(state, callbacks.onStateChange);
+    });
 
     // Sub tabs
     container.querySelectorAll('.market-tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         activeSubTab = btn.getAttribute('data-subtab');
+        render(container, state, callbacks);
+      });
+    });
+
+    // Search input
+    const searchInput = container.querySelector('#marketSearchInput');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        marketSearchQuery = e.target.value;
+        render(container, state, callbacks);
+        const refocused = container.querySelector('#marketSearchInput');
+        if (refocused) {
+          refocused.focus();
+          refocused.setSelectionRange(marketSearchQuery.length, marketSearchQuery.length);
+        }
+      });
+    }
+
+    container.querySelector('#btnClearMarketSearch')?.addEventListener('click', () => {
+      marketSearchQuery = '';
+      render(container, state, callbacks);
+    });
+
+    // Sector filter pills
+    container.querySelectorAll('[data-sector]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeSectorFilter = btn.getAttribute('data-sector');
         render(container, state, callbacks);
       });
     });
@@ -381,6 +501,7 @@ window.StudioGame.UI.MarketScreen = (function() {
     const comp = (state.market.companies || []).find(c => c.ticker === ticker);
     if (!comp) return;
 
+    const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
     const portfolioHolding = (state.market.portfolio || []).find(h => h.ticker === ticker);
     const sharesOwned = portfolioHolding ? portfolioHolding.sharesCount : 0;
     const isUp = comp.dayChangePct >= 0;
@@ -396,7 +517,10 @@ window.StudioGame.UI.MarketScreen = (function() {
         <div class="modal-header">
           <div class="modal-title-wrap">
             <span class="badge badge-gold font-mono">${comp.ticker}</span>
-            <h2 class="modal-title">${escapeHtml(comp.name)}</h2>
+            <div>
+              <h2 class="modal-title">${escapeHtml(comp.name)}</h2>
+              <span class="modal-sub-desc text-muted text-xs">${escapeHtml(comp.sector)}</span>
+            </div>
           </div>
           <button class="btn-icon-close" id="btnCloseTradeModal" aria-label="Close">&times;</button>
         </div>
@@ -409,20 +533,20 @@ window.StudioGame.UI.MarketScreen = (function() {
               <span class="hero-change-pill ${isUp ? 'change-up' : 'change-down'} font-mono">
                 ${isUp ? '▲ +' : '▼ '}${comp.dayChangePct}%
               </span>
-              ${isCircuit ? '<span class="badge badge-amber pulse">CIRCUIT BREAKER HIT (&plusmn;8%)</span>' : ''}
+              ${isCircuit ? '<span class="badge badge-amber pulse">CIRCUIT HIT (&plusmn;8%)</span>' : ''}
             </div>
 
             <div class="hero-user-holdings">
-              <span>Your Shares: <strong class="font-mono">${sharesOwned.toLocaleString('en-IN')}</strong></span>
-              <span>Available Cash: <strong class="highlight-gold">${window.StudioGame.Systems.Finance.formatRupees(state.player.cash)}</strong></span>
+              <div>Your Holdings: <strong class="font-mono highlight-gold">${sharesOwned.toLocaleString('en-IN')} Shares</strong></div>
+              <div>Available Cash: <strong class="highlight-emerald font-mono">${formatRupees(state.player.cash)}</strong></div>
             </div>
           </div>
 
           <!-- Interactive Price Chart Canvas -->
           <div class="stock-chart-container">
             <div class="chart-header-row">
-              <span class="chart-title">30-Day Trading History & Volume</span>
-              <span class="chart-circuit-note">Enforcing &minus;8% to &plus;8% Daily Circuit Bands</span>
+              <span class="chart-title">30-Day Historical Trend & Moving Average</span>
+              <span class="chart-circuit-note">&plusmn;8% Daily Circuit Filter Enforced</span>
             </div>
             <canvas id="stockPriceChartCanvas" width="600" height="180" class="stock-chart-canvas"></canvas>
           </div>
@@ -430,7 +554,7 @@ window.StudioGame.UI.MarketScreen = (function() {
           <!-- Technical & Fundamental Grid -->
           <div class="stock-intel-grid">
             <div class="intel-box">
-              <span class="intel-lbl">Order Book Sentiment</span>
+              <span class="intel-lbl">Order Book Demand</span>
               <span class="intel-val">${demandText}</span>
               <div class="pressure-bar-wrap mt-1">
                 <div class="pressure-bar-buy" style="width: ${comp.buyPressure}%"></div>
@@ -440,7 +564,7 @@ window.StudioGame.UI.MarketScreen = (function() {
 
             <div class="intel-box">
               <span class="intel-lbl">RSI (14-Day)</span>
-              <span class="intel-val ${comp.rsi > 70 ? 'highlight-rose' : (comp.rsi < 30 ? 'highlight-emerald' : 'highlight-cyan')}">${comp.rsi || 50} (${comp.rsi > 70 ? 'Overbought' : (comp.rsi < 30 ? 'Oversold' : 'Neutral')})</span>
+              <span class="intel-val ${comp.rsi > 70 ? 'highlight-rose' : (comp.rsi < 30 ? 'highlight-emerald' : 'highlight-cyan')} font-mono font-bold">${comp.rsi || 50} (${comp.rsi > 70 ? 'Overbought' : (comp.rsi < 30 ? 'Oversold' : 'Neutral')})</span>
             </div>
 
             <div class="intel-box">
@@ -460,7 +584,7 @@ window.StudioGame.UI.MarketScreen = (function() {
 
             <div class="intel-box">
               <span class="intel-lbl">Liquid Reserves</span>
-              <span class="intel-val highlight-gold">${window.StudioGame.Systems.Finance.formatRupees(comp.cashReserves || 1000000000)}</span>
+              <span class="intel-val highlight-gold font-mono">${formatRupees(comp.cashReserves || 1000000000)}</span>
             </div>
           </div>
 
@@ -473,10 +597,10 @@ window.StudioGame.UI.MarketScreen = (function() {
 
             <div class="trade-controls-row">
               <div class="trade-qty-box">
-                <label class="form-label">Quantity</label>
+                <label class="form-label">Order Quantity</label>
                 <div class="qty-input-group">
                   <button class="qty-adj-btn" id="btnMinusQty">&minus;</button>
-                  <input type="number" class="form-control-input text-center font-mono" id="tradeQtyInput" value="100" min="1">
+                  <input type="number" class="form-input text-center font-mono qty-input-field" id="tradeQtyInput" value="100" min="1">
                   <button class="qty-adj-btn" id="btnPlusQty">&plus;</button>
                 </div>
               </div>
@@ -489,8 +613,8 @@ window.StudioGame.UI.MarketScreen = (function() {
               </div>
 
               <div class="trade-total-box">
-                <span class="total-lbl">Order Value:</span>
-                <span class="total-val highlight-gold font-mono" id="tradeOrderValueDisplay">
+                <span class="total-lbl">Estimated Order Value:</span>
+                <span class="total-val highlight-gold font-mono font-bold" id="tradeOrderValueDisplay">
                   ₹${(100 * comp.sharePrice).toLocaleString('en-IN')}
                 </span>
               </div>

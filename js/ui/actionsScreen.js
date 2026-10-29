@@ -1,7 +1,6 @@
 /**
- * Actions Tab UI Component (Version 0.6)
- * Interface for Commercial Bids, Cinema & Web Series Production,
- * Active Theatrical & Production Pipeline, Custom Commercials, and Facility Upgrades.
+ * Actions Tab UI Component (Version 1.0)
+ * Visual Star Casting, Cinema Productions, Bidding RFPs, Active Theatrical Pipeline & Lot Upgrades.
  */
 
 window.StudioGame = window.StudioGame || {};
@@ -48,50 +47,77 @@ window.StudioGame.UI.ActionsScreen = (function() {
     }
 
     container.innerHTML = `
-      <div class="actions-page-container">
-        <!-- Top Operations Bar -->
-        <header class="actions-header">
-          <div class="actions-header-title-wrap">
-            <span class="badge badge-emerald">Studio Operations</span>
-            <h1 class="actions-title">Cinema & Commercial Productions</h1>
+      <div class="screen-page-container">
+        <!-- Unified Top App Bar -->
+        <header class="top-nav-bar">
+          <div class="top-user-wrap">
+            <div class="avatar-small">
+              <img src="${state.player.avatar}" alt="${state.player.name}" class="avatar-img-round" />
+            </div>
+            <div class="top-user-meta">
+              <div class="top-player-name">${state.player.name}</div>
+              <div class="top-studio-tag">${state.studio.name} &bull; Sound Stages (${activeProjectsCount}/${capacity})</div>
+            </div>
           </div>
-          <div class="actions-header-stats">
-            <div class="header-stat-pill">
-              <span class="stat-pill-label">Sound Stages</span>
-              <span class="stat-pill-val ${activeProjectsCount >= capacity ? 'text-rose' : 'highlight-cyan'}">
-                ${activeProjectsCount} / ${capacity} Occupied
-              </span>
+
+          <div class="top-date-wrap">
+            <div class="date-badge">
+              <span class="calendar-icon">📅</span>
+              <span class="calendar-text">Day ${state.clock.day} &bull; ${state.clock.formattedDate}</span>
             </div>
-            <div class="header-stat-pill">
-              <span class="stat-pill-label">Studio Cash</span>
-              <span class="stat-pill-val highlight-amber">${formatRupees(state.studio.cash)}</span>
-            </div>
+          </div>
+
+          <div class="top-actions">
+            <button class="btn-icon" id="btnOpenSaveManager" title="Save / Settings">
+              💾
+            </button>
           </div>
         </header>
 
-        <!-- Segmented Tab Bar -->
-        <nav class="actions-subnav-tabs">
-          <button class="actions-tab-btn ${activeSubTab === 'cinema' ? 'active' : ''}" data-subtab="cinema">
-            🎬 Feature Films & Series
-          </button>
-          <button class="actions-tab-btn ${activeSubTab === 'bids' ? 'active' : ''}" data-subtab="bids">
-            📋 Client RFPs (${state.bids.length})
-          </button>
-          <button class="actions-tab-btn ${activeSubTab === 'pipeline' ? 'active' : ''}" data-subtab="pipeline">
-            🎥 Active Pipeline (${activeProjectsCount})
-          </button>
-          <button class="actions-tab-btn ${activeSubTab === 'commission' ? 'active' : ''}" data-subtab="commission">
-            📸 Commercial Shoots
-          </button>
-          <button class="actions-tab-btn ${activeSubTab === 'upgrades' ? 'active' : ''}" data-subtab="upgrades">
-            🏢 Lot Upgrades (${state.studio.upgrades.length})
-          </button>
-        </nav>
+        <!-- Unified Sticky Turn Controls Bar -->
+        <section class="turn-control-bar">
+          <div class="turn-bar-inner">
+            <button class="btn-turn-primary" id="btnNextDay" title="Advance 1 in-game day">
+              <span class="turn-btn-glow"></span>
+              <span class="turn-btn-icon">▶</span>
+              <span class="turn-btn-text">Next Day</span>
+            </button>
+            <div class="turn-fast-forward-group">
+              <button class="btn-fast-forward" id="btnAdvanceWeek" title="Advance 1 full week">+7D</button>
+              <button class="btn-fast-forward" id="btnAdvanceMonth" title="Advance 1 month">+30D</button>
+              <button class="btn-fast-forward btn-event-advance" id="btnAdvanceEvent" title="Fast forward to next event">
+                ⚡ Event
+              </button>
+            </div>
+          </div>
+        </section>
 
-        <!-- Main Tab Body -->
-        <div class="actions-body">
-          ${renderSubTabContent(state, activeSubTab)}
-        </div>
+        <!-- Main Content Area -->
+        <main class="page-content-padding">
+          <!-- Segmented Tab Bar -->
+          <nav class="actions-subnav-tabs">
+            <button class="actions-tab-btn ${activeSubTab === 'cinema' ? 'active' : ''}" data-subtab="cinema">
+              🎬 Cinema & Web Series
+            </button>
+            <button class="actions-tab-btn ${activeSubTab === 'bids' ? 'active' : ''}" data-subtab="bids">
+              📋 Client RFPs (${state.bids.length})
+            </button>
+            <button class="actions-tab-btn ${activeSubTab === 'pipeline' ? 'active' : ''}" data-subtab="pipeline">
+              🎥 Active Pipeline (${activeProjectsCount})
+            </button>
+            <button class="actions-tab-btn ${activeSubTab === 'commission' ? 'active' : ''}" data-subtab="commission">
+              📸 Commercial Shoots
+            </button>
+            <button class="actions-tab-btn ${activeSubTab === 'upgrades' ? 'active' : ''}" data-subtab="upgrades">
+              🏢 Lot Upgrades (${state.studio.upgrades.length})
+            </button>
+          </nav>
+
+          <!-- Main Tab Body -->
+          <div class="actions-body mt-3">
+            ${renderSubTabContent(state, activeSubTab)}
+          </div>
+        </main>
       </div>
     `;
 
@@ -99,29 +125,11 @@ window.StudioGame.UI.ActionsScreen = (function() {
   }
 
   function renderSubTabContent(state, tab) {
-    const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
-    const projectSystem = window.StudioGame.Systems.Projects;
-
-    if (tab === 'cinema') {
-      return renderCinemaProductionTab(state);
-    }
-
-    if (tab === 'bids') {
-      return renderBidsTab(state);
-    }
-
-    if (tab === 'pipeline') {
-      return renderPipelineTab(state);
-    }
-
-    if (tab === 'commission') {
-      return renderCommissionTab(state);
-    }
-
-    if (tab === 'upgrades') {
-      return renderUpgradesTab(state);
-    }
-
+    if (tab === 'cinema') return renderCinemaProductionTab(state);
+    if (tab === 'bids') return renderBidsTab(state);
+    if (tab === 'pipeline') return renderPipelineTab(state);
+    if (tab === 'commission') return renderCommissionTab(state);
+    if (tab === 'upgrades') return renderUpgradesTab(state);
     return '';
   }
 
@@ -134,12 +142,11 @@ window.StudioGame.UI.ActionsScreen = (function() {
     const selectedFormat = formats.find(f => f.id === cinemaState.formatId) || formats[2];
     const selectedGenre = genres.find(g => g.id === cinemaState.genreId) || genres[0];
 
-    const leadActor = talents.find(t => t.id === cinemaState.leadActorId);
-    const leadActress = talents.find(t => t.id === cinemaState.leadActressId);
+    const leadActor = talents.find(t => t.id === cinemaState.leadActorId) || talents.find(t => t.gender === 'male');
+    const leadActress = talents.find(t => t.id === cinemaState.leadActressId) || talents.find(t => t.gender === 'female');
 
-    // Compute estimated cost
-    let actorFee = leadActor ? (leadActor.contractStatus === 'signed_player' ? Math.round(leadActor.averageFee * 0.2) : leadActor.averageFee) : 500000;
-    let actressFee = leadActress ? (leadActress.contractStatus === 'signed_player' ? Math.round(leadActress.averageFee * 0.2) : leadActress.averageFee) : 500000;
+    const actorFee = leadActor ? (leadActor.contractStatus === 'signed_player' ? Math.round(leadActor.averageFee * 0.2) : leadActor.averageFee) : 500000;
+    const actressFee = leadActress ? (leadActress.contractStatus === 'signed_player' ? Math.round(leadActress.averageFee * 0.2) : leadActress.averageFee) : 500000;
     let totalEst = selectedFormat.baseCost + actorFee + actressFee;
 
     if (state.player.skill === 'brilliant_manager') {
@@ -148,13 +155,17 @@ window.StudioGame.UI.ActionsScreen = (function() {
     totalEst = Math.round(totalEst);
     const canAfford = state.studio.cash >= totalEst;
 
+    const actorAvatar = leadActor ? window.StudioGame.Face.generate({ gender: 'male', seed: leadActor.avatarSeed || leadActor.name }) : '';
+    const actressAvatar = leadActress ? window.StudioGame.Face.generate({ gender: 'female', seed: leadActress.avatarSeed || leadActress.name }) : '';
+
     return `
       <div class="cinema-production-layout">
+        <!-- Production Banner -->
         <div class="info-callout mb-3">
           <div class="callout-icon">👑</div>
           <div class="callout-text">
             <strong>Feature Film & Web Series Production Studio</strong><br/>
-            Package cinematic scripts, attach headlining actors & actresses from your talent roster, finance physical production, and distribute nationwide for massive theatrical ticket runs and streaming licensing windfalls!
+            Package scripts, attach headlining stars from your talent roster, finance physical production, and release nationwide for theatrical runs and multi-Crore OTT streaming rights deals!
           </div>
         </div>
 
@@ -167,7 +178,7 @@ window.StudioGame.UI.ActionsScreen = (function() {
                 <div class="f-icon">${f.icon}</div>
                 <div class="f-info">
                   <div class="f-name">${f.name}</div>
-                  <div class="f-dur">${f.durationDays} Days &bull; ${f.theatricalWeeks > 0 ? `${f.theatricalWeeks} Wks Theatrical` : 'Direct OTT'}</div>
+                  <div class="f-dur">${f.durationDays} Days &bull; ${f.theatricalWeeks > 0 ? `${f.theatricalWeeks} Wks In Theatres` : 'Direct OTT Showcase'}</div>
                   <div class="f-cost highlight-gold font-mono">${formatRupees(f.baseCost)} Base</div>
                 </div>
               </div>
@@ -180,12 +191,12 @@ window.StudioGame.UI.ActionsScreen = (function() {
           <label class="form-label font-bold">2. Script & Genre Packaging</label>
           <div class="form-group mb-2">
             <label class="form-label">Project Title</label>
-            <input type="text" id="inputCinemaTitle" class="form-control-input font-bold" value="${escapeHtml(cinemaState.title)}" />
+            <input type="text" id="inputCinemaTitle" class="form-input font-bold" value="${escapeHtml(cinemaState.title)}" />
           </div>
 
           <div class="form-group mt-2">
             <label class="form-label">Genre</label>
-            <select id="selectCinemaGenre" class="form-select-control">
+            <select id="selectCinemaGenre" class="form-input">
               ${genres.map(g => `
                 <option value="${g.id}" ${cinemaState.genreId === g.id ? 'selected' : ''}>
                   ${g.icon} ${g.name}
@@ -195,32 +206,64 @@ window.StudioGame.UI.ActionsScreen = (function() {
           </div>
         </div>
 
-        <!-- Casting Section -->
+        <!-- Visual Star Casting Picker -->
         <div class="card p-3 mb-3">
-          <label class="form-label font-bold">3. Star Cast Selection</label>
-          <p class="subtext mb-2">Artistes signed to your studio cost 80% less than outside free agents!</p>
+          <div class="card-header-between mb-2">
+            <div>
+              <label class="form-label font-bold mb-0">3. Lead Star Cast Selection</label>
+              <div class="subtext">Signed studio stars cost <strong>80% less</strong> than outside free agents!</div>
+            </div>
+          </div>
 
-          <div class="casting-selectors-grid">
-            <div class="form-group">
-              <label class="form-label">Lead Actor</label>
-              <select id="selectLeadActor" class="form-select-control font-mono">
-                ${talents.filter(t => t.gender === 'male').slice(0, 50).map(t => `
-                  <option value="${t.id}" ${cinemaState.leadActorId === t.id ? 'selected' : ''}>
-                    ${t.name} (${t.category}) &bull; ${t.contractStatus === 'signed_player' ? '⭐ SIGNED' : formatRupees(t.averageFee)}
-                  </option>
-                `).join('')}
-              </select>
+          <div class="visual-casting-grid">
+            <!-- Lead Actor Card -->
+            <div class="casting-star-card">
+              <div class="casting-card-avatar">
+                <img src="${actorAvatar}" alt="${leadActor?.name}" class="avatar-img-square" />
+              </div>
+              <div class="casting-card-info">
+                <span class="casting-role-badge">Lead Hero / Actor</span>
+                <h4 class="casting-star-name">${escapeHtml(leadActor?.name || 'Select Actor')}</h4>
+                <div class="casting-star-meta">
+                  <span class="badge ${leadActor?.contractStatus === 'signed_player' ? 'badge-emerald' : 'badge-slate'}">
+                    ${leadActor?.contractStatus === 'signed_player' ? '⭐ SIGNED (80% OFF)' : 'Free Agent'}
+                  </span>
+                  <span class="badge badge-amber font-mono">${formatRupees(actorFee)}</span>
+                </div>
+                <div class="casting-stats-mini mt-1">
+                  <span>Acting: <strong>${leadActor?.acting || 50}</strong></span>
+                  <span>Glamour: <strong>${leadActor?.glamour || 50}</strong></span>
+                  <span>Fans: <strong>${window.StudioGame.Systems.Talent.formatFans(leadActor?.fans || 0)}</strong></span>
+                </div>
+              </div>
+              <button class="btn btn-sm btn-secondary btn-open-cast-picker" data-cast-gender="male">
+                Change Actor
+              </button>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Lead Actress</label>
-              <select id="selectLeadActress" class="form-select-control font-mono">
-                ${talents.filter(t => t.gender === 'female').slice(0, 50).map(t => `
-                  <option value="${t.id}" ${cinemaState.leadActressId === t.id ? 'selected' : ''}>
-                    ${t.name} (${t.category}) &bull; ${t.contractStatus === 'signed_player' ? '⭐ SIGNED' : formatRupees(t.averageFee)}
-                  </option>
-                `).join('')}
-              </select>
+            <!-- Lead Actress Card -->
+            <div class="casting-star-card">
+              <div class="casting-card-avatar">
+                <img src="${actressAvatar}" alt="${leadActress?.name}" class="avatar-img-square" />
+              </div>
+              <div class="casting-card-info">
+                <span class="casting-role-badge">Lead Heroine / Actress</span>
+                <h4 class="casting-star-name">${escapeHtml(leadActress?.name || 'Select Actress')}</h4>
+                <div class="casting-star-meta">
+                  <span class="badge ${leadActress?.contractStatus === 'signed_player' ? 'badge-emerald' : 'badge-slate'}">
+                    ${leadActress?.contractStatus === 'signed_player' ? '⭐ SIGNED (80% OFF)' : 'Free Agent'}
+                  </span>
+                  <span class="badge badge-amber font-mono">${formatRupees(actressFee)}</span>
+                </div>
+                <div class="casting-stats-mini mt-1">
+                  <span>Acting: <strong>${leadActress?.acting || 50}</strong></span>
+                  <span>Glamour: <strong>${leadActress?.glamour || 50}</strong></span>
+                  <span>Fans: <strong>${window.StudioGame.Systems.Talent.formatFans(leadActress?.fans || 0)}</strong></span>
+                </div>
+              </div>
+              <button class="btn btn-sm btn-secondary btn-open-cast-picker" data-cast-gender="female">
+                Change Actress
+              </button>
             </div>
           </div>
         </div>
@@ -229,7 +272,7 @@ window.StudioGame.UI.ActionsScreen = (function() {
         <div class="card p-3 mb-3">
           <div class="cinema-budget-summary">
             <div class="budget-line">
-              <span>Production Scale Base:</span>
+              <span>Production Scale Base (${selectedFormat.name}):</span>
               <span class="font-mono">${formatRupees(selectedFormat.baseCost)}</span>
             </div>
             <div class="budget-line">
@@ -241,9 +284,9 @@ window.StudioGame.UI.ActionsScreen = (function() {
               <span class="font-mono">${formatRupees(actressFee)}</span>
             </div>
             ${state.player.skill === 'brilliant_manager' ? `
-              <div class="budget-line highlight-emerald">
-                <span>Brilliant Manager Discount:</span>
-                <span class="font-mono">-25%</span>
+              <div class="budget-line highlight-emerald font-bold">
+                <span>✍️ Brilliant Manager Discount (-25%):</span>
+                <span class="font-mono">Applied</span>
               </div>
             ` : ''}
             <div class="budget-divider my-2"></div>
@@ -332,7 +375,7 @@ window.StudioGame.UI.ActionsScreen = (function() {
         <div class="empty-state-card text-center p-4">
           <div class="empty-icon">🎬</div>
           <div class="empty-title">Sound Stages Are Dark</div>
-          <div class="empty-sub text-muted">No active cinema or commercial shoots on the floor. Visit the Feature Films or RFPs tab to greenlight productions.</div>
+          <div class="empty-sub text-muted">No active cinema or commercial shoots on the floor. Visit the Cinema or RFPs tab to greenlight productions.</div>
         </div>
       `;
     }
@@ -365,7 +408,6 @@ window.StudioGame.UI.ActionsScreen = (function() {
                 <span class="stage-tag">${proj.stage}</span>
               </div>
 
-              <!-- Progress Bar -->
               <div class="pipeline-progress-wrap">
                 <div class="pipeline-progress-bar" style="width: ${progressPct}%"></div>
               </div>
@@ -383,8 +425,8 @@ window.StudioGame.UI.ActionsScreen = (function() {
                 </div>
               ` : `
                 <div class="pipeline-financials mt-2">
-                  <span>Invested Budget: <strong>${formatRupees(proj.upfrontInvested)}</strong></span>
-                  ${proj.agreedPayout ? `<span>Agreed Payout: <strong class="highlight-emerald">${formatRupees(proj.agreedPayout)}</strong></span>` : ''}
+                  <span>Invested Budget: <strong class="font-mono">${formatRupees(proj.upfrontInvested)}</strong></span>
+                  ${proj.agreedPayout ? `<span>Agreed Payout: <strong class="highlight-emerald font-mono">${formatRupees(proj.agreedPayout)}</strong></span>` : ''}
                 </div>
               `}
             </div>
@@ -420,12 +462,12 @@ window.StudioGame.UI.ActionsScreen = (function() {
 
           <div class="form-group mt-3">
             <label class="form-label">Project Title</label>
-            <input type="text" id="inputProjectName" class="form-control-input font-bold" value="${escapeHtml(commissionState.name)}" />
+            <input type="text" id="inputProjectName" class="form-input font-bold" value="${escapeHtml(commissionState.name)}" />
           </div>
 
           <div class="form-group mt-3">
             <label class="form-label">Commercial Genre</label>
-            <select id="selectGenre" class="form-select-control">
+            <select id="selectGenre" class="form-input">
               ${genres.map(g => `
                 <option value="${g.id}" ${commissionState.genreId === g.id ? 'selected' : ''}>
                   ${g.icon} ${g.name}
@@ -437,19 +479,26 @@ window.StudioGame.UI.ActionsScreen = (function() {
 
         <div class="section-label mt-3 font-bold">Select Commercial Model</div>
         <div class="talent-choice-list mb-3">
-          ${starterTalent.map(t => `
-            <div class="talent-starter-card ${commissionState.talentId === t.id ? 'selected' : ''}" data-talent-id="${t.id}">
-              <div class="talent-starter-header">
-                <div class="talent-starter-name">${t.name}</div>
-                <div class="talent-starter-fee highlight-amber font-mono">${formatRupees(t.flatFee)}</div>
+          ${starterTalent.map(t => {
+            const avatarUrl = window.StudioGame.Face.generate({ gender: t.gender, seed: t.avatarSeed || t.name });
+            return `
+              <div class="talent-starter-card ${commissionState.talentId === t.id ? 'selected' : ''}" data-talent-id="${t.id}">
+                <div class="starter-avatar-wrap">
+                  <img src="${avatarUrl}" alt="${t.name}" class="avatar-img-square" />
+                </div>
+                <div class="starter-card-body">
+                  <div class="talent-starter-header">
+                    <div class="talent-starter-name">${t.name}</div>
+                    <div class="talent-starter-fee highlight-amber font-mono">${formatRupees(t.flatFee)}</div>
+                  </div>
+                  <div class="talent-starter-cat">${t.category}</div>
+                  <div class="talent-starter-bio">${t.bio}</div>
+                </div>
               </div>
-              <div class="talent-starter-cat">${t.category}</div>
-              <div class="talent-starter-bio">${t.bio}</div>
-            </div>
-          `).join('')}
+            `;
+          }).join('')}
         </div>
 
-        <!-- Section 3.25: Itemized Cost Bill -->
         <div class="card cost-bill-card p-3">
           <div class="card-header">
             <h3 class="card-title">Itemized Project Cost Audit</h3>
@@ -539,6 +588,16 @@ window.StudioGame.UI.ActionsScreen = (function() {
   }
 
   function attachListeners(container, state, callbacks) {
+    // Top bar & turn controls
+    container.querySelector('#btnNextDay')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(1));
+    container.querySelector('#btnAdvanceWeek')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(7));
+    container.querySelector('#btnAdvanceMonth')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(30));
+    container.querySelector('#btnAdvanceEvent')?.addEventListener('click', () => callbacks.onAdvanceToEvent?.());
+
+    container.querySelector('#btnOpenSaveManager')?.addEventListener('click', () => {
+      window.StudioGame.UI.SaveModal.open(state, callbacks.onStateChange);
+    });
+
     // Subnav tabs
     container.querySelectorAll('.actions-tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -572,23 +631,20 @@ window.StudioGame.UI.ActionsScreen = (function() {
       });
     }
 
-    // Lead Actor
-    const actorSelect = container.querySelector('#selectLeadActor');
-    if (actorSelect) {
-      actorSelect.addEventListener('change', (e) => {
-        cinemaState.leadActorId = e.target.value;
-        render(container, state, callbacks);
+    // Star Casting Picker Buttons (Change Actor / Actress)
+    container.querySelectorAll('.btn-open-cast-picker').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const gender = btn.getAttribute('data-cast-gender');
+        openStarCastingModal(gender, state, (selectedId) => {
+          if (gender === 'male') {
+            cinemaState.leadActorId = selectedId;
+          } else {
+            cinemaState.leadActressId = selectedId;
+          }
+          render(container, state, callbacks);
+        });
       });
-    }
-
-    // Lead Actress
-    const actressSelect = container.querySelector('#selectLeadActress');
-    if (actressSelect) {
-      actressSelect.addEventListener('change', (e) => {
-        cinemaState.leadActressId = e.target.value;
-        render(container, state, callbacks);
-      });
-    }
+    });
 
     // Greenlight Cinema button
     container.querySelector('#btnGreenlightCinema')?.addEventListener('click', () => {
@@ -681,6 +737,131 @@ window.StudioGame.UI.ActionsScreen = (function() {
         }
       });
     });
+  }
+
+  /**
+   * Modal for Visual Star Casting Picker with Search & Signed Star priority
+   */
+  function openStarCastingModal(gender, state, onSelect) {
+    const existing = document.getElementById('starCastingModal');
+    if (existing) existing.remove();
+
+    const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
+    const formatFans = window.StudioGame.Systems.Talent.formatFans;
+    const allStars = (state.talent || []).filter(t => t.gender === gender);
+
+    let searchTxt = '';
+    let filterSignedOnly = false;
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.id = 'starCastingModal';
+
+    function renderModalContent() {
+      const filteredStars = allStars.filter(s => {
+        if (filterSignedOnly && s.contractStatus !== 'signed_player') return false;
+        if (searchTxt.trim()) {
+          const q = searchTxt.toLowerCase().trim();
+          return s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q);
+        }
+        return true;
+      });
+
+      // Sort signed stars to the top!
+      filteredStars.sort((a, b) => {
+        if (a.contractStatus === 'signed_player' && b.contractStatus !== 'signed_player') return -1;
+        if (b.contractStatus === 'signed_player' && a.contractStatus !== 'signed_player') return 1;
+        return b.fans - a.fans;
+      });
+
+      backdrop.innerHTML = `
+        <div class="modal-card modal-lg slide-up">
+          <div class="modal-header">
+            <div class="modal-title-wrap">
+              <span class="badge badge-amber">${gender === 'female' ? 'Leading Actress' : 'Leading Actor'}</span>
+              <h2 class="modal-title">Cast Star Artiste</h2>
+            </div>
+            <button class="btn-icon-close" id="btnCloseCastingModal" aria-label="Close">&times;</button>
+          </div>
+
+          <div class="modal-body casting-modal-body">
+            <div class="casting-search-toolbar">
+              <input type="text" id="castingSearchInput" class="form-input" placeholder="Search by star name or category..." value="${escapeHtml(searchTxt)}">
+              <button class="filter-pill ${filterSignedOnly ? 'active' : ''}" id="btnToggleSignedOnly">
+                ⭐ Signed Exclusive Only
+              </button>
+            </div>
+
+            <div class="casting-star-results-list mt-3">
+              ${filteredStars.map(star => {
+                const isSigned = star.contractStatus === 'signed_player';
+                const effectiveFee = isSigned ? Math.round(star.averageFee * 0.2) : star.averageFee;
+                const avatarUrl = window.StudioGame.Face.generate({ gender: star.gender, seed: star.avatarSeed || star.name });
+
+                return `
+                  <div class="casting-result-item ${isSigned ? 'is-signed-item' : ''}" data-star-id="${star.id}">
+                    <div class="casting-item-avatar">
+                      <img src="${avatarUrl}" alt="${star.name}" class="avatar-img-square" />
+                    </div>
+                    <div class="casting-item-info">
+                      <div class="casting-item-header">
+                        <span class="star-name font-bold">${escapeHtml(star.name)}</span>
+                        <span class="badge ${isSigned ? 'badge-emerald' : 'badge-slate'}">
+                          ${isSigned ? '⭐ SIGNED (80% OFF)' : star.category}
+                        </span>
+                      </div>
+                      <div class="casting-item-meta">
+                        <span>🔥 ${formatFans(star.fans)}</span>
+                        <span>Acting: <strong>${star.acting}</strong></span>
+                        <span>Glamour: <strong>${star.glamour}</strong></span>
+                        <span class="highlight-gold font-mono font-bold">${formatRupees(effectiveFee)}</span>
+                      </div>
+                    </div>
+                    <button class="btn btn-sm ${isSigned ? 'btn-emerald' : 'btn-primary'} btn-select-star" data-star-id="${star.id}">
+                      Select
+                    </button>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Event listeners
+      backdrop.querySelector('#btnCloseCastingModal')?.addEventListener('click', () => backdrop.remove());
+      backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) backdrop.remove();
+      });
+
+      const input = backdrop.querySelector('#castingSearchInput');
+      if (input) {
+        input.focus();
+        input.selectionStart = input.selectionEnd = input.value.length;
+        input.addEventListener('input', (e) => {
+          searchTxt = e.target.value;
+          renderModalContent();
+        });
+      }
+
+      backdrop.querySelector('#btnToggleSignedOnly')?.addEventListener('click', () => {
+        filterSignedOnly = !filterSignedOnly;
+        renderModalContent();
+      });
+
+      backdrop.querySelectorAll('.btn-select-star, .casting-result-item').forEach(el => {
+        el.addEventListener('click', () => {
+          const sId = el.getAttribute('data-star-id');
+          if (sId) {
+            onSelect(sId);
+            backdrop.remove();
+          }
+        });
+      });
+    }
+
+    document.body.appendChild(backdrop);
+    renderModalContent();
   }
 
   function escapeHtml(str) {

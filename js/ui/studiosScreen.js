@@ -1,187 +1,350 @@
 /**
  * Studios UI Screen
  * Displays the 25 Legacy Indian Studios & 10 Dynamic Talent-Led Unicorn Houses,
- * live theatrical box office tracking, rankings, and studio diplomacy.
+ * live theatrical box office tracking, national rankings, and diplomacy.
  */
 
 window.StudioGame = window.StudioGame || {};
 window.StudioGame.UI = window.StudioGame.UI || {};
 
 window.StudioGame.UI.StudiosScreen = (function() {
-  let activeSubTab = 'legacy'; // 'legacy', 'unicorns', 'leaderboard'
+  let activeSubTab = 'all'; // 'all', 'legacy', 'unicorns', 'leaderboard'
+  let studioSearchQuery = '';
+  let activeAttitudeFilter = 'all'; // 'all', 'friendly', 'neutral', 'rival', 'aggressive'
+
+  function getStudioCrestSvg(name, isUnicorn) {
+    const clean = (name || 'Studio').replace(/[^a-zA-Z0-9 ]/g, '');
+    const words = clean.split(' ').filter(Boolean);
+    const initials = words.length > 1 ? (words[0][0] + words[1][0]).toUpperCase() : clean.slice(0, 2).toUpperCase();
+    const hash = Math.abs(name.split('').reduce((acc, c) => acc + c.charCodeAt(0) * 19, 0));
+
+    const gradients = isUnicorn ? [
+      ['#8b5cf6', '#ec4899'],
+      ['#6366f1', '#a855f7'],
+      ['#3b82f6', '#ec4899'],
+      ['#ec4899', '#f43f5e']
+    ] : [
+      ['#b45309', '#f59e0b'],
+      ['#047857', '#10b981'],
+      ['#1d4ed8', '#38bdf8'],
+      ['#6d28d9', '#a855f7'],
+      ['#be185d', '#fb7185']
+    ];
+
+    const [c1, c2] = gradients[hash % gradients.length];
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+      <defs>
+        <linearGradient id="stGrad${hash}" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="${c1}" />
+          <stop offset="100%" stop-color="${c2}" />
+        </linearGradient>
+      </defs>
+      <rect width="100" height="100" rx="22" fill="url(#stGrad${hash})" />
+      <rect x="4" y="4" width="92" height="92" rx="18" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2.5" />
+      <circle cx="50" cy="50" r="33" fill="rgba(0,0,0,0.22)" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" />
+      <text x="50" y="59" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="28" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="1.5">${initials}</text>
+    </svg>`;
+
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+  }
 
   function render(container, state, callbacks = {}) {
+    if (!container || !state) return;
     window.StudioGame.Systems.Studios.ensureStudiosState(state);
 
+    const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
     const legacy = state.studios.legacy || [];
     const unicorns = state.studios.unicorns || [];
 
     // Calculate player ranking among all 36 studios
     const allStudiosRanked = [
-      { name: state.studio.name, netWorth: state.studio.netWorth, isPlayer: true, reputation: state.studio.reputation },
-      ...legacy.map(s => ({ name: s.name, netWorth: s.netWorth, isPlayer: false, reputation: s.reputation })),
-      ...unicorns.map(u => ({ name: u.name, netWorth: u.netWorth, isPlayer: false, reputation: u.reputation }))
+      {
+        id: 'player_studio',
+        name: state.studio.name,
+        founder: state.player.name,
+        netWorth: state.studio.netWorth,
+        cash: state.player.cash,
+        isPlayer: true,
+        isUnicorn: false,
+        reputation: state.studio.reputation,
+        attitude: 'friendly',
+        signatureGenres: ['Versatile Cinema', 'Mass Entertainers'],
+        isPublic: !!state.market?.isStudioPublic,
+        ticker: state.market?.studioTicker || null,
+        filmsCount: (state.studio.completedProjects || []).length,
+        activeReleases: (state.studio.activeProjects || []).filter(p => p.format && p.theatricalWeek > 0).map(p => ({
+          title: p.title,
+          week: p.theatricalWeek,
+          weeklyGross: p.lastWeekGross || 0,
+          totalGross: p.boxOfficeGross || 0
+        }))
+      },
+      ...legacy.map(s => ({ ...s, isPlayer: false, isUnicorn: false })),
+      ...unicorns.map(u => ({ ...u, isPlayer: false, isUnicorn: true }))
     ].sort((a, b) => b.netWorth - a.netWorth);
 
     const playerRank = allStudiosRanked.findIndex(s => s.isPlayer) + 1;
+    const leaderStudio = allStudiosRanked[0];
+    const diffToLeader = leaderStudio.netWorth - state.studio.netWorth;
+
+    // Filter studios based on search & tab
+    let displayList = [];
+    if (activeSubTab === 'legacy') {
+      displayList = legacy.map(s => ({ ...s, isUnicorn: false }));
+    } else if (activeSubTab === 'unicorns') {
+      displayList = unicorns.map(u => ({ ...u, isUnicorn: true }));
+    } else if (activeSubTab === 'all') {
+      displayList = allStudiosRanked.filter(s => !s.isPlayer);
+    }
+
+    if (studioSearchQuery.trim()) {
+      const q = studioSearchQuery.toLowerCase().trim();
+      displayList = displayList.filter(s =>
+        s.name.toLowerCase().includes(q) ||
+        (s.founder && s.founder.toLowerCase().includes(q)) ||
+        (s.founderName && s.founderName.toLowerCase().includes(q)) ||
+        (s.signatureGenres && s.signatureGenres.some(g => g.toLowerCase().includes(q)))
+      );
+    }
+
+    if (activeAttitudeFilter !== 'all') {
+      displayList = displayList.filter(s => (s.attitude || 'neutral').toLowerCase() === activeAttitudeFilter);
+    }
 
     container.innerHTML = `
-      <div class="screen-container">
-        <!-- Sticky Top Bar -->
-        <header class="app-top-bar">
-          <div class="top-bar-left">
-            <div class="studio-brand">
-              <span class="studio-logo-icon">🏢</span>
-              <div class="studio-titles">
-                <h1 class="studio-title-text">Indian Studios</h1>
-                <span class="studio-subtitle-text">25 Legacy Houses &bull; 10 Talent Unicorns &bull; Your Rank: #${playerRank}</span>
+      <div class="screen-page-container">
+        <!-- Unified Top App Bar -->
+        <header class="top-nav-bar">
+          <div class="top-user-wrap">
+            <div class="avatar-small">
+              <img src="${state.player.avatar}" alt="${state.player.name}" class="avatar-img-round" />
+            </div>
+            <div class="top-user-meta">
+              <div class="top-player-name">${state.player.name}</div>
+              <div class="top-studio-tag">${state.studio.name} &bull; Studios & Rivals</div>
+            </div>
+          </div>
+
+          <div class="top-date-wrap">
+            <div class="date-badge">
+              <span class="calendar-icon">📅</span>
+              <span class="calendar-text">Day ${state.clock.day} &bull; ${state.clock.formattedDate}</span>
+            </div>
+          </div>
+
+          <div class="top-actions">
+            <button class="btn-icon" id="btnOpenSaveManager" title="Save / Settings">
+              💾
+            </button>
+          </div>
+        </header>
+
+        <!-- Unified Sticky Turn Controls Bar -->
+        <section class="turn-control-bar">
+          <div class="turn-bar-inner">
+            <button class="btn-turn-primary" id="btnNextDay" title="Advance 1 in-game day">
+              <span class="turn-btn-glow"></span>
+              <span class="turn-btn-icon">▶</span>
+              <span class="turn-btn-text">Next Day</span>
+            </button>
+            <div class="turn-fast-forward-group">
+              <button class="btn-fast-forward" id="btnAdvanceWeek" title="Advance 1 full week">+7D</button>
+              <button class="btn-fast-forward" id="btnAdvanceMonth" title="Advance 1 month">+30D</button>
+              <button class="btn-fast-forward btn-event-advance" id="btnAdvanceEvent" title="Fast forward until something happens">
+                ⚡ Event
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Main Content Area -->
+        <main class="dashboard-content">
+          <!-- National Ranking & Win Condition Hero Banner -->
+          <div class="rank-hero-marquee">
+            <div class="rank-hero-glow"></div>
+            <div class="rank-hero-left">
+              <div class="rank-crown-badge">
+                <span class="crown-icon">${playerRank === 1 ? '👑' : '🏢'}</span>
+                <span class="rank-big-num">#${playerRank}</span>
+                <span class="rank-total-tag">of 36 Studios</span>
+              </div>
+              <div class="rank-meta-details">
+                <div class="rank-marquee-title">${state.studio.name}</div>
+                <div class="rank-marquee-valuation">
+                  Valuation: <strong class="highlight-gold font-mono">${formatRupees(state.studio.netWorth)}</strong>
+                  &bull; Reputation: <strong>${state.studio.reputation}/100</strong>
+                </div>
+                <div class="rank-win-status">
+                  ${playerRank === 1
+                    ? '🌟 <span class="highlight-emerald font-bold">You are the #1 Studio in India!</span> Maintain this pinnacle for 3 full years to achieve the Industry Monopoly Win!'
+                    : `🎯 Target #1: <strong>${leaderStudio.name}</strong> (${formatRupees(leaderStudio.netWorth)}). Gap: <strong class="highlight-rose">${formatRupees(diffToLeader)}</strong>`
+                  }
+                </div>
+              </div>
+            </div>
+
+            <div class="rank-hero-quickstats">
+              <div class="mini-stat-item">
+                <span class="mini-label">Total Studios</span>
+                <span class="mini-val">36 Houses</span>
+              </div>
+              <div class="mini-stat-item">
+                <span class="mini-label">Legacy Empires</span>
+                <span class="mini-val highlight-amber">25 Studios</span>
+              </div>
+              <div class="mini-stat-item">
+                <span class="mini-label">Star Unicorns</span>
+                <span class="mini-val highlight-indigo">10 Houses</span>
               </div>
             </div>
           </div>
 
-          <div class="top-bar-right">
-            <div class="turn-controls">
-              <button class="turn-btn" id="btnNextDay" title="Advance 1 Day">
-                <span class="turn-icon">▶</span>
-                <span class="turn-label">1D</span>
+          <!-- Studio Navigation Tabs -->
+          <div class="studios-nav-tabs-wrapper">
+            <div class="studios-nav-tabs">
+              <button class="studios-tab-btn ${activeSubTab === 'all' ? 'active' : ''}" data-subtab="all">
+                🌐 All Rivals (${allStudiosRanked.length - 1})
               </button>
-              <button class="turn-btn" id="btnPlus7Days" title="Advance 7 Days">
-                <span class="turn-icon">⏩</span>
-                <span class="turn-label">+7D</span>
+              <button class="studios-tab-btn ${activeSubTab === 'legacy' ? 'active' : ''}" data-subtab="legacy">
+                🏛️ Legacy Studios (25)
               </button>
-              <button class="turn-btn" id="btnPlus30Days" title="Advance 30 Days">
-                <span class="turn-icon">⏭</span>
-                <span class="turn-label">+30D</span>
+              <button class="studios-tab-btn ${activeSubTab === 'unicorns' ? 'active' : ''}" data-subtab="unicorns">
+                🦄 Star Unicorns (10)
               </button>
-              <button class="turn-btn highlight-gold" id="btnNextEvent" title="Advance to Next Milestone">
-                <span class="turn-icon">⚡</span>
-                <span class="turn-label">Event</span>
+              <button class="studios-tab-btn ${activeSubTab === 'leaderboard' ? 'active' : ''}" data-subtab="leaderboard">
+                🏆 Industry Leaderboard
               </button>
             </div>
           </div>
-        </header>
 
-        <!-- National Ranking Banner -->
-        <div class="rank-banner-card">
-          <div class="rank-banner-left">
-            <div class="rank-number-pill">Rank #${playerRank}</div>
-            <div class="rank-info-text">
-              <div class="rank-headline">${state.studio.name} (${window.StudioGame.Systems.Finance.formatRupees(state.studio.netWorth)})</div>
-              <div class="rank-sub">Target Win Condition: Maintain <strong>Rank #1 Studio</strong> in India for 3 years straight!</div>
+          ${activeSubTab !== 'leaderboard' ? `
+            <!-- Search & Attitude Filter Toolbar -->
+            <div class="studio-toolbar-card">
+              <div class="studio-search-row">
+                <div class="search-input-wrap">
+                  <span class="search-icon">🔍</span>
+                  <input type="text" id="studioSearchInput" class="form-input search-input-padded" placeholder="Search studios by name, founder, or genre..." value="${escapeHtml(studioSearchQuery)}">
+                  ${studioSearchQuery ? '<button class="clear-search-btn" id="btnClearStudioSearch">&times;</button>' : ''}
+                </div>
+
+                <div class="attitude-filter-pills">
+                  <button class="filter-pill ${activeAttitudeFilter === 'all' ? 'active' : ''}" data-attitude="all">All Attitudes</button>
+                  <button class="filter-pill ${activeAttitudeFilter === 'friendly' ? 'active' : ''}" data-attitude="friendly">🤝 Friendly</button>
+                  <button class="filter-pill ${activeAttitudeFilter === 'neutral' ? 'active' : ''}" data-attitude="neutral">⚖️ Neutral</button>
+                  <button class="filter-pill ${activeAttitudeFilter === 'rival' ? 'active' : ''}" data-attitude="rival">⚡ Rival</button>
+                  <button class="filter-pill ${activeAttitudeFilter === 'aggressive' ? 'active' : ''}" data-attitude="aggressive">🔥 Aggressive</button>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="rank-banner-right">
-            <span class="leader-pill">👑 #1 Studio: ${allStudiosRanked[0]?.name} (${window.StudioGame.Systems.Finance.formatRupees(allStudiosRanked[0]?.netWorth)})</span>
-          </div>
-        </div>
 
-        <!-- Sub Tabs Navigation -->
-        <div class="studios-nav-tabs">
-          <button class="studios-tab-btn ${activeSubTab === 'legacy' ? 'active' : ''}" data-subtab="legacy">
-            🏛️ Legacy Studios (25)
-          </button>
-          <button class="studios-tab-btn ${activeSubTab === 'unicorns' ? 'active' : ''}" data-subtab="unicorns">
-            🦄 Dynamic Unicorns (Top 10)
-          </button>
-          <button class="studios-tab-btn ${activeSubTab === 'leaderboard' ? 'active' : ''}" data-subtab="leaderboard">
-            🏆 Box Office & Net Worth Board
-          </button>
-        </div>
+            ${activeSubTab === 'unicorns' ? `
+              <div class="unicorn-info-banner">
+                <span class="unicorn-banner-icon">🦄</span>
+                <div class="unicorn-banner-desc">
+                  <strong>Top 10 Dynamic Talent-Led Unicorns:</strong> Boutique production companies founded by superstars and visionary actors.
+                  They dynamically surge with hits and collapse with flops. If one dissolves, another top star steps up to launch a new boutique!
+                </div>
+              </div>
+            ` : ''}
 
-        <!-- Tab Viewport -->
-        <div class="studios-tab-content">
-          ${activeSubTab === 'legacy' ? renderLegacyGrid(legacy, state) : ''}
-          ${activeSubTab === 'unicorns' ? renderUnicornsGrid(unicorns, state) : ''}
-          ${activeSubTab === 'leaderboard' ? renderLeaderboard(allStudiosRanked, state) : ''}
-        </div>
+            <!-- Studios Cards Grid -->
+            <div class="studios-cards-grid">
+              ${displayList.length > 0 ? displayList.map((s, idx) => renderStudioCard(s, s.isUnicorn, state, allStudiosRanked.findIndex(x => x.id === s.id) + 1)).join('') : `
+                <div class="empty-results-box text-center">
+                  <span class="empty-icon">🏢</span>
+                  <h4>No Studios Found</h4>
+                  <p>No production houses match your current search and attitude filters.</p>
+                </div>
+              `}
+            </div>
+          ` : renderLeaderboard(allStudiosRanked, state)}
+        </main>
       </div>
     `;
 
     attachEventListeners(container, state, callbacks);
   }
 
-  function renderLegacyGrid(studios, state) {
-    return `
-      <div class="studios-grid">
-        ${studios.map(studio => renderStudioCard(studio, false, state)).join('')}
-      </div>
-    `;
-  }
-
-  function renderUnicornsGrid(unicorns, state) {
-    return `
-      <div class="unicorn-info-banner">
-        <span class="unicorn-banner-icon">🦄</span>
-        <div class="unicorn-banner-desc">
-          <strong>Top 10 Talent Unicorns:</strong> Boutique production companies founded and run by actors & actresses.
-          They dynamically rise and collapse. If one goes bankrupt, another star-led studio takes its place!
-        </div>
-      </div>
-      <div class="studios-grid">
-        ${unicorns.map((u, idx) => renderStudioCard(u, true, state, idx + 1)).join('')}
-      </div>
-    `;
-  }
-
   function renderStudioCard(s, isUnicorn, state, rank = null) {
+    const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
     const hasActiveRelease = s.activeReleases && s.activeReleases.length > 0;
     const isPublic = s.isPublic;
+    const crestUrl = getStudioCrestSvg(s.name, isUnicorn);
 
     let attitudeBadgeClass = 'badge-slate';
-    if (s.attitude === 'friendly') attitudeBadgeClass = 'badge-emerald';
-    else if (s.attitude === 'rival') attitudeBadgeClass = 'badge-amber';
-    else if (s.attitude === 'aggressive') attitudeBadgeClass = 'badge-rose';
+    let attitudeIcon = '⚖️';
+    if (s.attitude === 'friendly') {
+      attitudeBadgeClass = 'badge-emerald';
+      attitudeIcon = '🤝';
+    } else if (s.attitude === 'rival') {
+      attitudeBadgeClass = 'badge-amber';
+      attitudeIcon = '⚡';
+    } else if (s.attitude === 'aggressive') {
+      attitudeBadgeClass = 'badge-rose';
+      attitudeIcon = '🔥';
+    }
 
     return `
-      <div class="studio-card ${isUnicorn ? 'unicorn-card' : ''}" data-studio-id="${s.id}">
-        <div class="studio-card-header">
-          <div class="studio-card-title-group">
+      <div class="studio-profile-card ${isUnicorn ? 'is-unicorn' : ''}" data-studio-id="${s.id}">
+        <div class="studio-card-top">
+          <div class="studio-crest-box">
+            <img src="${crestUrl}" alt="${escapeHtml(s.name)}" class="studio-crest-img" />
+            ${rank ? `<span class="studio-rank-tag">#${rank}</span>` : ''}
+          </div>
+
+          <div class="studio-header-intel">
             <div class="studio-name-row">
-              ${rank ? `<span class="unicorn-rank-tag">#${rank}</span>` : ''}
-              <h3 class="studio-card-name">${escapeHtml(s.name)}</h3>
+              <h3 class="studio-title-main">${escapeHtml(s.name)}</h3>
               ${isPublic ? `<span class="badge badge-gold font-mono">${s.ticker || 'IPO'}</span>` : ''}
             </div>
-            <span class="studio-founder-meta">
-              Founded by <strong>${escapeHtml(s.founder || s.founderName || 'Media Board')}</strong>
-              ${s.established ? `&bull; Est. ${s.established}` : ''}
-            </span>
+
+            <div class="studio-founder-line">
+              <span>Founded by <strong>${escapeHtml(s.founder || s.founderName || 'Media Board')}</strong></span>
+              ${s.established ? `&bull; <span>Est. ${s.established}</span>` : ''}
+            </div>
+
+            <div class="studio-tags-row">
+              <span class="badge ${attitudeBadgeClass}">${attitudeIcon} ${capitalize(s.attitude || 'Neutral')}</span>
+              <span class="badge badge-blue">⭐ Rep: ${s.reputation}/100</span>
+              <span class="badge badge-purple">🎬 ${s.filmsCount || 0} Films</span>
+            </div>
           </div>
 
-          <div class="studio-nw-pill">
-            <span class="nw-label">Net Worth</span>
-            <span class="nw-val highlight-gold">${window.StudioGame.Systems.Finance.formatRupees(s.netWorth)}</span>
+          <div class="studio-valuation-box">
+            <span class="val-lbl">Valuation</span>
+            <span class="val-num highlight-gold font-mono">${formatRupees(s.netWorth)}</span>
           </div>
         </div>
 
-        <div class="studio-card-badges">
-          <span class="badge ${attitudeBadgeClass}">Attitude: ${s.attitude || 'Neutral'}</span>
-          <span class="badge badge-blue">Reputation: ${s.reputation}/100</span>
-          <span class="badge badge-purple">${s.filmsCount || 0} Films Produced</span>
+        <!-- Theatrical Status Strip -->
+        <div class="studio-theatre-strip">
+          ${hasActiveRelease ? `
+            <div class="release-active-strip">
+              <div class="release-indicator">
+                <span class="pulse-dot"></span>
+                <span class="release-header-lbl">NOW IN THEATRES:</span>
+              </div>
+              <strong class="release-film-name">🎬 ${escapeHtml(s.activeReleases[0].title)}</strong>
+              <div class="release-metrics-right">
+                <span class="release-week-tag">Week ${s.activeReleases[0].week}</span>
+                <span class="highlight-emerald font-mono font-bold">${formatRupees(s.activeReleases[0].totalGross)}</span>
+              </div>
+            </div>
+          ` : `
+            <div class="release-idle-strip">
+              <span class="idle-icon">⏳</span>
+              <span class="idle-text">Pipeline in Pre-Production & Script Development</span>
+            </div>
+          `}
         </div>
 
-        ${hasActiveRelease ? `
-          <div class="active-release-box">
-            <div class="release-indicator-row">
-              <span class="live-dot pulse"></span>
-              <span class="release-tag">Running in Theatres:</span>
-              <strong class="release-title">${escapeHtml(s.activeReleases[0].title)}</strong>
-            </div>
-            <div class="release-boxoffice-line">
-              <span>Week ${s.activeReleases[0].week}</span>
-              <span class="highlight-emerald">Total: ${window.StudioGame.Systems.Finance.formatRupees(s.activeReleases[0].totalGross)}</span>
-            </div>
+        <!-- Card Footer with Genres and Dossier Button -->
+        <div class="studio-card-bottom">
+          <div class="studio-signature-genres">
+            ${(s.signatureGenres || ['Commercial Cinema']).slice(0, 2).map(g => `<span class="genre-tag-pill">${g}</span>`).join('')}
           </div>
-        ` : `
-          <div class="studio-inactive-release">
-            <span>In Pre-Production & Development</span>
-          </div>
-        `}
-
-        <div class="studio-card-footer">
-          <div class="studio-genres-snippet">
-            ${(s.signatureGenres || ['Commercial Cinema']).slice(0, 2).map(g => `<span class="genre-pill-sm">${g}</span>`).join('')}
-          </div>
-          <button class="btn btn-sm btn-secondary btn-view-studio" data-studio-id="${s.id}">
+          <button class="btn btn-sm btn-outline-gold btn-view-studio" data-studio-id="${s.id}">
             Dossier & Partner
           </button>
         </div>
@@ -190,23 +353,87 @@ window.StudioGame.UI.StudiosScreen = (function() {
   }
 
   function renderLeaderboard(allRanked, state) {
+    const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
+
     return `
-      <div class="leaderboard-table-card">
-        <div class="table-header-row">
-          <span class="col-rank">Rank</span>
-          <span class="col-name">Production House</span>
-          <span class="col-rep">Reputation</span>
-          <span class="col-nw">Valuation</span>
-        </div>
-        <div class="table-body">
-          ${allRanked.map((s, idx) => `
-            <div class="table-row ${s.isPlayer ? 'is-player-row' : ''}">
-              <span class="col-rank">#${idx + 1} ${idx === 0 ? '👑' : ''}</span>
-              <span class="col-name">${escapeHtml(s.name)} ${s.isPlayer ? '⭐ (Your Studio)' : ''}</span>
-              <span class="col-rep">${s.reputation}/100</span>
-              <span class="col-nw font-mono highlight-gold">${window.StudioGame.Systems.Finance.formatRupees(s.netWorth)}</span>
-            </div>
-          `).join('')}
+      <div class="leaderboard-container">
+        <div class="leaderboard-table-card">
+          <div class="table-responsive">
+            <table class="leaderboard-table">
+              <thead>
+                <tr>
+                  <th class="th-rank">Rank</th>
+                  <th class="th-studio">Studio Name</th>
+                  <th class="th-founder">Leadership</th>
+                  <th class="th-type">Category</th>
+                  <th class="th-rep">Reputation</th>
+                  <th class="th-boxoffice">Active Box Office</th>
+                  <th class="th-nw">Valuation</th>
+                  <th class="th-action">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${allRanked.map((s, idx) => {
+                  const isPlayer = s.isPlayer;
+                  const rankNum = idx + 1;
+                  const rankIcon = rankNum === 1 ? '👑' : (rankNum === 2 ? '🥈' : (rankNum === 3 ? '🥉' : ''));
+                  const hasRelease = s.activeReleases && s.activeReleases.length > 0;
+                  const crest = getStudioCrestSvg(s.name, s.isUnicorn);
+
+                  return `
+                    <tr class="lb-row ${isPlayer ? 'lb-row-player' : ''}">
+                      <td class="td-rank">
+                        <span class="rank-indicator ${rankNum <= 3 ? 'rank-top3' : ''}">${rankIcon} #${rankNum}</span>
+                      </td>
+                      <td class="td-studio">
+                        <div class="lb-studio-cell">
+                          <img src="${crest}" class="lb-crest-mini" alt="" />
+                          <div class="lb-studio-names">
+                            <strong class="lb-studio-title">${escapeHtml(s.name)}</strong>
+                            ${isPlayer ? '<span class="badge badge-emerald text-xs">⭐ YOUR EMPIRE</span>' : ''}
+                            ${s.isPublic ? `<span class="badge badge-gold font-mono text-xs">${s.ticker}</span>` : ''}
+                          </div>
+                        </div>
+                      </td>
+                      <td class="td-founder text-muted">
+                        ${escapeHtml(s.founder || s.founderName || 'Board')}
+                      </td>
+                      <td class="td-type">
+                        <span class="badge ${isPlayer ? 'badge-amber' : (s.isUnicorn ? 'badge-indigo' : 'badge-slate')}">
+                          ${isPlayer ? 'Player Studio' : (s.isUnicorn ? '🦄 Star Unicorn' : '🏛️ Legacy')}
+                        </span>
+                      </td>
+                      <td class="td-rep">
+                        <div class="lb-rep-cell">
+                          <div class="rep-mini-bar">
+                            <div class="rep-mini-fill" style="width: ${Math.min(100, s.reputation)}%"></div>
+                          </div>
+                          <span class="rep-mini-num">${s.reputation}</span>
+                        </div>
+                      </td>
+                      <td class="td-boxoffice">
+                        ${hasRelease ? `
+                          <span class="highlight-emerald font-mono font-bold text-xs">
+                            🎬 ${formatRupees(s.activeReleases[0].totalGross)}
+                          </span>
+                        ` : '<span class="text-dim text-xs">Pre-Production</span>'}
+                      </td>
+                      <td class="td-nw">
+                        <span class="font-mono font-bold highlight-gold">${formatRupees(s.netWorth)}</span>
+                      </td>
+                      <td class="td-action">
+                        ${!isPlayer ? `
+                          <button class="btn btn-xs btn-secondary btn-view-studio" data-studio-id="${s.id}">
+                            Dossier
+                          </button>
+                        ` : '<span class="badge badge-emerald">You</span>'}
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     `;
@@ -215,14 +442,47 @@ window.StudioGame.UI.StudiosScreen = (function() {
   function attachEventListeners(container, state, callbacks) {
     // Clock turns
     container.querySelector('#btnNextDay')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(1));
-    container.querySelector('#btnPlus7Days')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(7));
-    container.querySelector('#btnPlus30Days')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(30));
-    container.querySelector('#btnNextEvent')?.addEventListener('click', () => callbacks.onAdvanceToEvent?.());
+    container.querySelector('#btnAdvanceWeek')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(7));
+    container.querySelector('#btnAdvanceMonth')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(30));
+    container.querySelector('#btnAdvanceEvent')?.addEventListener('click', () => callbacks.onAdvanceToEvent?.());
+
+    container.querySelector('#btnOpenSaveManager')?.addEventListener('click', () => {
+      window.StudioGame.UI.SaveModal.open(state, callbacks.onStateChange);
+    });
 
     // Sub tabs
     container.querySelectorAll('.studios-tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         activeSubTab = btn.getAttribute('data-subtab');
+        render(container, state, callbacks);
+      });
+    });
+
+    // Search input
+    const searchInput = container.querySelector('#studioSearchInput');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        studioSearchQuery = e.target.value;
+        // Re-render
+        render(container, state, callbacks);
+        // Maintain focus
+        const refocused = container.querySelector('#studioSearchInput');
+        if (refocused) {
+          refocused.focus();
+          refocused.setSelectionRange(studioSearchQuery.length, studioSearchQuery.length);
+        }
+      });
+    }
+
+    container.querySelector('#btnClearStudioSearch')?.addEventListener('click', () => {
+      studioSearchQuery = '';
+      render(container, state, callbacks);
+    });
+
+    // Attitude filter pills
+    container.querySelectorAll('[data-attitude]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeAttitudeFilter = btn.getAttribute('data-attitude');
         render(container, state, callbacks);
       });
     });
@@ -236,7 +496,7 @@ window.StudioGame.UI.StudiosScreen = (function() {
       });
     });
 
-    container.querySelectorAll('.studio-card').forEach(card => {
+    container.querySelectorAll('.studio-profile-card').forEach(card => {
       card.addEventListener('click', () => {
         const studioId = card.getAttribute('data-studio-id');
         openStudioDossierModal(studioId, state, callbacks);
@@ -251,7 +511,10 @@ window.StudioGame.UI.StudiosScreen = (function() {
     const studio = [...state.studios.legacy, ...state.studios.unicorns].find(s => s.id === studioId);
     if (!studio) return;
 
+    const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
     const isPublic = studio.isPublic;
+    const crestUrl = getStudioCrestSvg(studio.name, studio.founderStarId !== undefined);
+
     const backdrop = document.createElement('div');
     backdrop.className = 'modal-backdrop';
     backdrop.id = 'studioDossierModal';
@@ -260,10 +523,16 @@ window.StudioGame.UI.StudiosScreen = (function() {
       <div class="modal-card modal-lg slide-up">
         <div class="modal-header">
           <div class="modal-title-wrap">
-            <span class="badge ${studio.attitude === 'friendly' ? 'badge-emerald' : (studio.attitude === 'aggressive' ? 'badge-rose' : 'badge-amber')}">
-              ${studio.attitude ? studio.attitude.toUpperCase() : 'NEUTRAL'}
-            </span>
-            <h2 class="modal-title">${escapeHtml(studio.name)}</h2>
+            <img src="${crestUrl}" class="modal-crest-small" alt="" />
+            <div>
+              <div class="modal-studio-subtag">
+                <span class="badge ${studio.attitude === 'friendly' ? 'badge-emerald' : (studio.attitude === 'aggressive' ? 'badge-rose' : 'badge-amber')}">
+                  ${studio.attitude ? studio.attitude.toUpperCase() : 'NEUTRAL'}
+                </span>
+                ${isPublic ? `<span class="badge badge-gold font-mono">${studio.ticker}</span>` : '<span class="badge badge-slate">PRIVATE HOUSE</span>'}
+              </div>
+              <h2 class="modal-title">${escapeHtml(studio.name)}</h2>
+            </div>
           </div>
           <button class="btn-icon-close" id="btnCloseStudioModal" aria-label="Close">&times;</button>
         </div>
@@ -275,16 +544,16 @@ window.StudioGame.UI.StudiosScreen = (function() {
               <span class="intel-val">${escapeHtml(studio.founder || studio.founderName || 'Media Conglomerate')}</span>
             </div>
             <div class="intel-col">
-              <span class="intel-lbl">Net Worth</span>
-              <span class="intel-val highlight-gold">${window.StudioGame.Systems.Finance.formatRupees(studio.netWorth)}</span>
+              <span class="intel-lbl">Valuation</span>
+              <span class="intel-val highlight-gold font-mono">${formatRupees(studio.netWorth)}</span>
             </div>
             <div class="intel-col">
-              <span class="intel-lbl">Working Capital</span>
-              <span class="intel-val">${window.StudioGame.Systems.Finance.formatRupees(studio.cash || studio.netWorth * 0.3)}</span>
+              <span class="intel-lbl">Liquid Reserves</span>
+              <span class="intel-val font-mono">${formatRupees(studio.cash || studio.netWorth * 0.3)}</span>
             </div>
             <div class="intel-col">
-              <span class="intel-lbl">Stock Market Listing</span>
-              <span class="intel-val ${isPublic ? 'highlight-cyan' : ''}">${isPublic ? `Listed (${studio.ticker})` : 'Private Studio'}</span>
+              <span class="intel-lbl">Industry Reputation</span>
+              <span class="intel-val highlight-indigo">${studio.reputation}/100</span>
             </div>
           </div>
 
@@ -308,21 +577,26 @@ window.StudioGame.UI.StudiosScreen = (function() {
                       <span class="badge badge-emerald">Week ${rel.week}</span>
                     </div>
                     <div class="run-stats">
-                      <span>Weekly Run: <strong>${window.StudioGame.Systems.Finance.formatRupees(rel.weeklyGross)}</strong></span>
-                      <span>Total Box Office: <strong class="highlight-gold">${window.StudioGame.Systems.Finance.formatRupees(rel.totalGross)}</strong></span>
+                      <span>Weekly Run: <strong class="font-mono">${formatRupees(rel.weeklyGross)}</strong></span>
+                      <span>Total Box Office: <strong class="highlight-gold font-mono">${formatRupees(rel.totalGross)}</strong></span>
                     </div>
                   </div>
                 `).join('')}
               </div>
-            ` : '<p class="empty-note">No current titles running in theatres. New productions in development pipeline.</p>'}
+            ` : '<p class="empty-note text-muted">No current titles running in theatres. New productions in development pipeline.</p>'}
           </div>
 
           <!-- Diplomacy Actions -->
           <div class="studio-diplomacy-box">
-            <h4 class="diplomacy-title">🤝 Inter-Studio Diplomacy</h4>
-            <p class="diplomacy-desc">
-              Forge strategic co-production alliances to reduce budget exposure and secure shared theatrical distribution across Pan-India circuits.
-            </p>
+            <div class="diplomacy-header">
+              <span class="diplomacy-icon">🤝</span>
+              <div>
+                <h4 class="diplomacy-title">Strategic Co-Production Partnership</h4>
+                <p class="diplomacy-desc">
+                  Pitch a 40% joint co-production alliance with ${escapeHtml(studio.name)}. Shared budgets reduce capital exposure, pool star power, and expand screen distribution.
+                </p>
+              </div>
+            </div>
             <div class="diplomacy-actions">
               <button class="btn btn-primary" id="btnPitchCoProd">
                 Pitch 40% Co-Production Partnership
@@ -357,6 +631,11 @@ window.StudioGame.UI.StudiosScreen = (function() {
         window.StudioGame.App.showToast(`⚠️ ${res.error}`);
       }
     });
+  }
+
+  function capitalize(str) {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
   function escapeHtml(str) {

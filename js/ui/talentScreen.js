@@ -35,7 +35,6 @@ window.StudioGame.UI.TalentScreen = (function() {
       }
 
       if (activeFilterGender !== 'all' && t.gender !== activeFilterGender) return false;
-
       if (activeFilterImage !== 'all' && t.pureImage !== activeFilterImage) return false;
 
       if (activeFilterStatus === 'free_agent' && t.contractStatus !== 'free_agent') return false;
@@ -71,144 +70,157 @@ window.StudioGame.UI.TalentScreen = (function() {
     const pageItems = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     container.innerHTML = `
-      <div class="screen-container">
-        <!-- Sticky Top Bar -->
-        <header class="app-top-bar">
-          <div class="top-bar-left">
-            <div class="studio-brand">
-              <span class="studio-logo-icon">🌟</span>
-              <div class="studio-titles">
-                <h1 class="studio-title-text">Talent Roster</h1>
-                <span class="studio-subtitle-text">${talents.length} Indian Cinema Artistes &bull; ${signedCount} Signed</span>
+      <div class="screen-page-container">
+        <!-- Unified Top App Bar -->
+        <header class="top-nav-bar">
+          <div class="top-user-wrap">
+            <div class="avatar-small">
+              <img src="${state.player.avatar}" alt="${state.player.name}" class="avatar-img-round" />
+            </div>
+            <div class="top-user-meta">
+              <div class="top-player-name">${state.player.name}</div>
+              <div class="top-studio-tag">${state.studio.name} &bull; Talent Center</div>
+            </div>
+          </div>
+
+          <div class="top-date-wrap">
+            <div class="date-badge">
+              <span class="calendar-icon">📅</span>
+              <span class="calendar-text">Day ${state.clock.day} &bull; ${state.clock.formattedDate}</span>
+            </div>
+          </div>
+
+          <div class="top-actions">
+            <button class="btn-icon" id="btnOpenSaveManager" title="Save / Settings">
+              💾
+            </button>
+          </div>
+        </header>
+
+        <!-- Unified Sticky Turn Controls Bar -->
+        <section class="turn-control-bar">
+          <div class="turn-bar-inner">
+            <button class="btn-turn-primary" id="btnNextDay" title="Advance 1 in-game day">
+              <span class="turn-btn-glow"></span>
+              <span class="turn-btn-icon">▶</span>
+              <span class="turn-btn-text">Next Day</span>
+            </button>
+            <div class="turn-fast-forward-group">
+              <button class="btn-fast-forward" id="btnAdvanceWeek" title="Advance 1 full week">+7D</button>
+              <button class="btn-fast-forward" id="btnAdvanceMonth" title="Advance 1 month">+30D</button>
+              <button class="btn-fast-forward btn-event-advance" id="btnAdvanceEvent" title="Fast forward to next event">
+                ⚡ Event
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Main Content Area -->
+        <main class="page-content-padding">
+          <!-- Stats Overview Banner -->
+          <div class="talent-summary-grid">
+            <div class="summary-mini-card">
+              <span class="mini-label">Total Artistes</span>
+              <span class="mini-val highlight-gold">${talents.length}</span>
+              <span class="mini-sub">152 Actresses / 152 Actors</span>
+            </div>
+            <div class="summary-mini-card">
+              <span class="mini-label">Our Signed Roster</span>
+              <span class="mini-val highlight-emerald">${signedCount} Stars</span>
+              <span class="mini-sub">Exclusive Retention (80% Off)</span>
+            </div>
+            <div class="summary-mini-card">
+              <span class="mini-label">Artistes in Debt</span>
+              <span class="mini-val highlight-rose">${debtCount} Talents</span>
+              <span class="mini-sub">Bailout for Deep Loyalty</span>
+            </div>
+            <div class="summary-mini-card">
+              <span class="mini-label">Studio Cash</span>
+              <span class="mini-val font-mono">${window.StudioGame.Systems.Finance.formatRupees(state.studio.cash)}</span>
+              <span class="mini-sub">Available Capital</span>
+            </div>
+          </div>
+
+          <!-- Filter & Search Toolbar -->
+          <div class="talent-toolbar-card">
+            <div class="toolbar-search-row">
+              <div class="search-input-wrap">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="talentSearchInput" class="form-input search-input-padded" placeholder="Search by name, star tier, or background bio..." value="${escapeHtml(searchQuery)}">
+                ${searchQuery ? '<button class="clear-search-btn" id="btnClearSearch">&times;</button>' : ''}
+              </div>
+
+              <div class="sort-select-wrap">
+                <select id="talentSortSelect" class="form-input">
+                  <option value="fans_desc" ${activeSortBy === 'fans_desc' ? 'selected' : ''}>🔥 Most Fans (Popularity)</option>
+                  <option value="acting_desc" ${activeSortBy === 'acting_desc' ? 'selected' : ''}>🎭 Acting Skill (High &rarr; Low)</option>
+                  <option value="glamour_desc" ${activeSortBy === 'glamour_desc' ? 'selected' : ''}>✨ Glamour / Beauty (High &rarr; Low)</option>
+                  <option value="fee_asc" ${activeSortBy === 'fee_asc' ? 'selected' : ''}>💰 Lowest Fee (Budget Friendly)</option>
+                  <option value="fee_desc" ${activeSortBy === 'fee_desc' ? 'selected' : ''}>💎 Highest Fee (Superstars)</option>
+                  <option value="net_worth_desc" ${activeSortBy === 'net_worth_desc' ? 'selected' : ''}>🏛️ Net Worth (Wealthiest)</option>
+                  <option value="debt_desc" ${activeSortBy === 'debt_desc' ? 'selected' : ''}>💸 Highest Debt (Bailout Targets)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Filter Pills -->
+            <div class="filter-pills-row">
+              <div class="pill-group">
+                <span class="pill-group-title">Gender:</span>
+                <button class="filter-pill ${activeFilterGender === 'all' ? 'active' : ''}" data-filter-gender="all">All</button>
+                <button class="filter-pill ${activeFilterGender === 'female' ? 'active' : ''}" data-filter-gender="female">👩 Actresses</button>
+                <button class="filter-pill ${activeFilterGender === 'male' ? 'active' : ''}" data-filter-gender="male">👨 Actors</button>
+              </div>
+
+              <div class="pill-group">
+                <span class="pill-group-title">Category:</span>
+                <button class="filter-pill ${activeFilterCategory === 'all' ? 'active' : ''}" data-filter-category="all">All</button>
+                <button class="filter-pill ${activeFilterCategory === 'superstar' ? 'active' : ''}" data-filter-category="superstar">👑 Superstars</button>
+                <button class="filter-pill ${activeFilterCategory === 'a_lister' ? 'active' : ''}" data-filter-category="a_lister">🌟 A-Listers</button>
+                <button class="filter-pill ${activeFilterCategory === 'acclaimed' ? 'active' : ''}" data-filter-category="acclaimed">🎭 Acclaimed</button>
+                <button class="filter-pill ${activeFilterCategory === 'rising_star' ? 'active' : ''}" data-filter-category="rising_star">🚀 Rising Stars</button>
+                <button class="filter-pill ${activeFilterCategory === 'model' ? 'active' : ''}" data-filter-category="model">👗 Models</button>
+                <button class="filter-pill ${activeFilterCategory === 'newcomer' ? 'active' : ''}" data-filter-category="newcomer">🌱 Newcomers</button>
+              </div>
+
+              <div class="pill-group">
+                <span class="pill-group-title">Status:</span>
+                <button class="filter-pill ${activeFilterStatus === 'all' ? 'active' : ''}" data-filter-status="all">All</button>
+                <button class="filter-pill ${activeFilterStatus === 'free_agent' ? 'active' : ''}" data-filter-status="free_agent">🆓 Free Agents</button>
+                <button class="filter-pill ${activeFilterStatus === 'signed' ? 'active' : ''}" data-filter-status="signed">📜 Signed To Us</button>
+                <button class="filter-pill ${activeFilterStatus === 'in_debt' ? 'active' : ''}" data-filter-status="in_debt">💸 In Debt</button>
+              </div>
+
+              <div class="pill-group">
+                <span class="pill-group-title">Image:</span>
+                <button class="filter-pill ${activeFilterImage === 'all' ? 'active' : ''}" data-filter-image="all">All</button>
+                <button class="filter-pill ${activeFilterImage === 'wholesome' ? 'active' : ''}" data-filter-image="wholesome">🕊️ Pure Wholesome</button>
+                <button class="filter-pill ${activeFilterImage === 'romantic' ? 'active' : ''}" data-filter-image="romantic">💖 Romantic</button>
+                <button class="filter-pill ${activeFilterImage === 'bold' ? 'active' : ''}" data-filter-image="bold">🔥 Bold</button>
+                <button class="filter-pill ${activeFilterImage === 'unrestricted' ? 'active' : ''}" data-filter-image="unrestricted">⚡ Method</button>
               </div>
             </div>
           </div>
 
-          <div class="top-bar-right">
-            <div class="turn-controls">
-              <button class="turn-btn" id="btnNextDay" title="Advance 1 Day">
-                <span class="turn-icon">▶</span>
-                <span class="turn-label">1D</span>
-              </button>
-              <button class="turn-btn" id="btnPlus7Days" title="Advance 7 Days">
-                <span class="turn-icon">⏩</span>
-                <span class="turn-label">+7D</span>
-              </button>
-              <button class="turn-btn" id="btnPlus30Days" title="Advance 30 Days">
-                <span class="turn-icon">⏭</span>
-                <span class="turn-label">+30D</span>
-              </button>
-              <button class="turn-btn highlight-gold" id="btnNextEvent" title="Advance to Next Milestone">
-                <span class="turn-icon">⚡</span>
-                <span class="turn-label">Event</span>
-              </button>
+          <!-- Filter Count Headline -->
+          <div class="results-header-bar">
+            <span class="results-count-text">Showing <strong>${filtered.length}</strong> matching artistes &bull; Page ${currentPage} of ${totalPages}</span>
+          </div>
+
+          <!-- Talent Cards Grid -->
+          <div class="talent-cards-grid">
+            ${pageItems.map(talent => renderTalentCard(talent, state)).join('')}
+          </div>
+
+          <!-- Pagination Controls -->
+          ${totalPages > 1 ? `
+            <div class="pagination-bar">
+              <button class="pagination-btn" id="btnPrevPage" ${currentPage === 1 ? 'disabled' : ''}>&larr; Previous</button>
+              <span class="page-indicator">Page ${currentPage} of ${totalPages}</span>
+              <button class="pagination-btn" id="btnNextPage" ${currentPage === totalPages ? 'disabled' : ''}>Next &rarr;</button>
             </div>
-          </div>
-        </header>
-
-        <!-- Stats Overview Banner -->
-        <div class="talent-summary-grid">
-          <div class="summary-mini-card">
-            <span class="mini-label">Total Pool</span>
-            <span class="mini-val highlight-gold">${talents.length}</span>
-            <span class="mini-sub">152 Actresses / 152 Actors</span>
-          </div>
-          <div class="summary-mini-card">
-            <span class="mini-label">Our Signed Roster</span>
-            <span class="mini-val highlight-emerald">${signedCount} Stars</span>
-            <span class="mini-sub">Exclusive Retention</span>
-          </div>
-          <div class="summary-mini-card">
-            <span class="mini-label">Talent In Debt</span>
-            <span class="mini-val highlight-rose">${debtCount} Artistes</span>
-            <span class="mini-sub">Bailout & Gain Loyalty</span>
-          </div>
-          <div class="summary-mini-card">
-            <span class="mini-label">Studio Cash</span>
-            <span class="mini-val">${window.StudioGame.Systems.Finance.formatRupees(state.studio.cash)}</span>
-            <span class="mini-sub">Available Capital</span>
-          </div>
-        </div>
-
-        <!-- Filter & Search Toolbar -->
-        <div class="talent-toolbar-card">
-          <div class="toolbar-search-row">
-            <div class="search-input-wrap">
-              <span class="search-icon">🔍</span>
-              <input type="text" id="talentSearchInput" class="form-control-input" placeholder="Search actor, actress, star category, or bio..." value="${escapeHtml(searchQuery)}">
-              ${searchQuery ? '<button class="clear-search-btn" id="btnClearSearch">&times;</button>' : ''}
-            </div>
-
-            <div class="sort-select-wrap">
-              <select id="talentSortSelect" class="form-select-control">
-                <option value="fans_desc" ${activeSortBy === 'fans_desc' ? 'selected' : ''}>🔥 Most Fans (Popularity)</option>
-                <option value="acting_desc" ${activeSortBy === 'acting_desc' ? 'selected' : ''}>🎭 Acting Skill (High &rarr; Low)</option>
-                <option value="glamour_desc" ${activeSortBy === 'glamour_desc' ? 'selected' : ''}>✨ Glamour / Beauty (High &rarr; Low)</option>
-                <option value="fee_asc" ${activeSortBy === 'fee_asc' ? 'selected' : ''}>💰 Lowest Fee (Budget Friendly)</option>
-                <option value="fee_desc" ${activeSortBy === 'fee_desc' ? 'selected' : ''}>💎 Highest Fee (Superstars)</option>
-                <option value="net_worth_desc" ${activeSortBy === 'net_worth_desc' ? 'selected' : ''}>🏛️ Net Worth (Wealthiest)</option>
-                <option value="debt_desc" ${activeSortBy === 'debt_desc' ? 'selected' : ''}>💸 Highest Debt (Bailout Targets)</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Filter Pills -->
-          <div class="filter-pills-row">
-            <div class="pill-group">
-              <span class="pill-group-title">Gender:</span>
-              <button class="filter-pill ${activeFilterGender === 'all' ? 'active' : ''}" data-filter-gender="all">All</button>
-              <button class="filter-pill ${activeFilterGender === 'female' ? 'active' : ''}" data-filter-gender="female">👩 Actresses</button>
-              <button class="filter-pill ${activeFilterGender === 'male' ? 'active' : ''}" data-filter-gender="male">👨 Actors</button>
-            </div>
-
-            <div class="pill-group">
-              <span class="pill-group-title">Category:</span>
-              <button class="filter-pill ${activeFilterCategory === 'all' ? 'active' : ''}" data-filter-category="all">All</button>
-              <button class="filter-pill ${activeFilterCategory === 'superstar' ? 'active' : ''}" data-filter-category="superstar">👑 Superstars</button>
-              <button class="filter-pill ${activeFilterCategory === 'a_lister' ? 'active' : ''}" data-filter-category="a_lister">🌟 A-Listers</button>
-              <button class="filter-pill ${activeFilterCategory === 'acclaimed' ? 'active' : ''}" data-filter-category="acclaimed">🎭 Acclaimed</button>
-              <button class="filter-pill ${activeFilterCategory === 'rising_star' ? 'active' : ''}" data-filter-category="rising_star">🚀 Rising Stars</button>
-              <button class="filter-pill ${activeFilterCategory === 'model' ? 'active' : ''}" data-filter-category="model">👗 Models</button>
-              <button class="filter-pill ${activeFilterCategory === 'newcomer' ? 'active' : ''}" data-filter-category="newcomer">🌱 Newcomers</button>
-            </div>
-
-            <div class="pill-group">
-              <span class="pill-group-title">Status:</span>
-              <button class="filter-pill ${activeFilterStatus === 'all' ? 'active' : ''}" data-filter-status="all">All</button>
-              <button class="filter-pill ${activeFilterStatus === 'free_agent' ? 'active' : ''}" data-filter-status="free_agent">🆓 Free Agents</button>
-              <button class="filter-pill ${activeFilterStatus === 'signed' ? 'active' : ''}" data-filter-status="signed">📜 Signed To Us</button>
-              <button class="filter-pill ${activeFilterStatus === 'in_debt' ? 'active' : ''}" data-filter-status="in_debt">💸 In Debt</button>
-            </div>
-
-            <div class="pill-group">
-              <span class="pill-group-title">Screen Image:</span>
-              <button class="filter-pill ${activeFilterImage === 'all' ? 'active' : ''}" data-filter-image="all">All</button>
-              <button class="filter-pill ${activeFilterImage === 'wholesome' ? 'active' : ''}" data-filter-image="wholesome">🕊️ Pure / Wholesome</button>
-              <button class="filter-pill ${activeFilterImage === 'romantic' ? 'active' : ''}" data-filter-image="romantic">💖 Romantic</button>
-              <button class="filter-pill ${activeFilterImage === 'bold' ? 'active' : ''}" data-filter-image="bold">🔥 Bold</button>
-              <button class="filter-pill ${activeFilterImage === 'unrestricted' ? 'active' : ''}" data-filter-image="unrestricted">⚡ Method</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Filter Count Headline -->
-        <div class="results-header-bar">
-          <span class="results-count-text">Showing <strong>${filtered.length}</strong> matching talent (Page ${currentPage} of ${totalPages})</span>
-        </div>
-
-        <!-- Talent Cards Grid -->
-        <div class="talent-cards-grid">
-          ${pageItems.map(talent => renderTalentCard(talent, state)).join('')}
-        </div>
-
-        <!-- Pagination Controls -->
-        ${totalPages > 1 ? `
-          <div class="pagination-bar">
-            <button class="pagination-btn" id="btnPrevPage" ${currentPage === 1 ? 'disabled' : ''}>&larr; Previous</button>
-            <span class="page-indicator">Page ${currentPage} of ${totalPages}</span>
-            <button class="pagination-btn" id="btnNextPage" ${currentPage === totalPages ? 'disabled' : ''}>Next &rarr;</button>
-          </div>
-        ` : ''}
+          ` : ''}
+        </main>
       </div>
     `;
 
@@ -217,23 +229,22 @@ window.StudioGame.UI.TalentScreen = (function() {
 
   function renderTalentCard(t, state) {
     const isSignedToUs = t.contractStatus === 'signed_player';
-    const isSignedOther = t.contractStatus === 'exclusive_studio';
     const hasDebt = t.debt && t.debt > 0;
 
     let imageBadgeClass = 'badge-blue';
     let imageBadgeText = 'Romantic';
     if (t.pureImage === 'wholesome') {
       imageBadgeClass = 'badge-emerald';
-      imageBadgeText = '🕊️ Pure Wholesome';
+      imageBadgeText = '🕊️ Pure';
     } else if (t.pureImage === 'bold') {
       imageBadgeClass = 'badge-rose';
-      imageBadgeText = '🔥 Bold Screen';
+      imageBadgeText = '🔥 Bold';
     } else if (t.pureImage === 'unrestricted') {
       imageBadgeClass = 'badge-purple';
       imageBadgeText = '⚡ Method';
     }
 
-    const avatarSvg = window.StudioGame.Face.generate({
+    const avatarUrl = window.StudioGame.Face.generate({
       gender: t.gender,
       seed: t.avatarSeed || t.name
     });
@@ -242,7 +253,7 @@ window.StudioGame.UI.TalentScreen = (function() {
       <div class="talent-roster-card ${isSignedToUs ? 'is-signed-our' : ''}" data-talent-id="${t.id}">
         <div class="talent-card-header">
           <div class="talent-avatar-box">
-            ${avatarSvg}
+            <img src="${avatarUrl}" alt="${escapeHtml(t.name)}" class="avatar-img-square" />
             <span class="talent-gender-icon">${t.gender === 'female' ? '♀' : '♂'}</span>
           </div>
 
@@ -255,8 +266,8 @@ window.StudioGame.UI.TalentScreen = (function() {
             <div class="talent-badges-row">
               <span class="badge ${getCategoryBadgeClass(t.category)}">${t.category}</span>
               <span class="badge ${imageBadgeClass}">${imageBadgeText}</span>
-              ${hasDebt ? `<span class="badge badge-amber">💸 Debt: ${window.StudioGame.Systems.Finance.formatRupees(t.debt)}</span>` : ''}
-              ${isSignedToUs ? '<span class="badge badge-emerald">📜 Signed Exclusive</span>' : ''}
+              ${hasDebt ? `<span class="badge badge-amber font-mono">💸 Debt: ${window.StudioGame.Systems.Finance.formatRupees(t.debt)}</span>` : ''}
+              ${isSignedToUs ? '<span class="badge badge-emerald">📜 Signed (80% Off)</span>' : ''}
             </div>
 
             <div class="talent-fans-line">
@@ -301,7 +312,7 @@ window.StudioGame.UI.TalentScreen = (function() {
         <div class="talent-card-footer">
           <div class="talent-fee-box">
             <span class="fee-label">Standard Quote:</span>
-            <span class="fee-amount highlight-gold">${window.StudioGame.Systems.Finance.formatRupees(t.averageFee)}</span>
+            <span class="fee-amount highlight-gold font-mono">${window.StudioGame.Systems.Finance.formatRupees(t.averageFee)}</span>
           </div>
 
           <button class="btn btn-sm ${isSignedToUs ? 'btn-secondary' : 'btn-primary'} btn-view-talent" data-talent-id="${t.id}">
@@ -325,11 +336,15 @@ window.StudioGame.UI.TalentScreen = (function() {
   }
 
   function attachEventListeners(container, state, callbacks) {
-    // Top bar clock turns
+    // Top bar & turn controls
     container.querySelector('#btnNextDay')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(1));
-    container.querySelector('#btnPlus7Days')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(7));
-    container.querySelector('#btnPlus30Days')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(30));
-    container.querySelector('#btnNextEvent')?.addEventListener('click', () => callbacks.onAdvanceToEvent?.());
+    container.querySelector('#btnAdvanceWeek')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(7));
+    container.querySelector('#btnAdvanceMonth')?.addEventListener('click', () => callbacks.onAdvanceTurn?.(30));
+    container.querySelector('#btnAdvanceEvent')?.addEventListener('click', () => callbacks.onAdvanceToEvent?.());
+
+    container.querySelector('#btnOpenSaveManager')?.addEventListener('click', () => {
+      window.StudioGame.UI.SaveModal.open(state, callbacks.onStateChange);
+    });
 
     // Search input
     const searchInput = container.querySelector('#talentSearchInput');
@@ -338,10 +353,14 @@ window.StudioGame.UI.TalentScreen = (function() {
         searchQuery = e.target.value;
         currentPage = 1;
         render(container, state, callbacks);
+        const refocused = container.querySelector('#talentSearchInput');
+        if (refocused) {
+          refocused.focus();
+          refocused.setSelectionRange(searchQuery.length, searchQuery.length);
+        }
       });
     }
 
-    // Clear search
     container.querySelector('#btnClearSearch')?.addEventListener('click', () => {
       searchQuery = '';
       currentPage = 1;
@@ -409,7 +428,7 @@ window.StudioGame.UI.TalentScreen = (function() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
-    // View & Hire Talent Modal
+    // Modal triggers
     container.querySelectorAll('.btn-view-talent').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -426,9 +445,6 @@ window.StudioGame.UI.TalentScreen = (function() {
     });
   }
 
-  /**
-   * Open full-screen Talent Dossier & Negotiation Modal
-   */
   function openTalentDossierModal(talentId, state, callbacks) {
     const existing = document.getElementById('talentDossierModal');
     if (existing) existing.remove();
@@ -440,7 +456,7 @@ window.StudioGame.UI.TalentScreen = (function() {
     const hasDebt = talent.debt && talent.debt > 0;
     const canAffordDebt = state.studio.cash >= (talent.debt || 0);
 
-    const avatarSvg = window.StudioGame.Face.generate({
+    const avatarUrl = window.StudioGame.Face.generate({
       gender: talent.gender,
       seed: talent.avatarSeed || talent.name
     });
@@ -463,7 +479,7 @@ window.StudioGame.UI.TalentScreen = (function() {
           <!-- Star Banner -->
           <div class="dossier-hero-row">
             <div class="dossier-avatar-col">
-              ${avatarSvg}
+              <img src="${avatarUrl}" alt="${escapeHtml(talent.name)}" class="dossier-avatar-img" />
             </div>
 
             <div class="dossier-main-intel">
@@ -477,8 +493,8 @@ window.StudioGame.UI.TalentScreen = (function() {
               <div class="dossier-tags-cluster">
                 <span class="dossier-tag">Screen Image: <strong>${formatPureImageLabel(talent.pureImage)}</strong></span>
                 <span class="dossier-tag">Marital Status: <strong>${talent.maritalStatus}${talent.spouse ? ` (${escapeHtml(talent.spouse)})` : ''}</strong></span>
-                <span class="dossier-tag">Net Worth: <strong>${window.StudioGame.Systems.Finance.formatRupees(talent.netWorth)}</strong></span>
-                <span class="dossier-tag">Standard Fee: <strong>${window.StudioGame.Systems.Finance.formatRupees(talent.averageFee)}</strong></span>
+                <span class="dossier-tag">Net Worth: <strong class="font-mono">${window.StudioGame.Systems.Finance.formatRupees(talent.netWorth)}</strong></span>
+                <span class="dossier-tag">Standard Fee: <strong class="highlight-gold font-mono">${window.StudioGame.Systems.Finance.formatRupees(talent.averageFee)}</strong></span>
               </div>
             </div>
           </div>
@@ -489,9 +505,9 @@ window.StudioGame.UI.TalentScreen = (function() {
               <div class="debt-alert-left">
                 <span class="debt-warning-icon">💸</span>
                 <div class="debt-warning-text">
-                  <div class="debt-warning-title">Crushing Personal Debt: ${window.StudioGame.Systems.Finance.formatRupees(talent.debt)}</div>
+                  <div class="debt-warning-title font-mono">Personal Debt Burden: ${window.StudioGame.Systems.Finance.formatRupees(talent.debt)}</div>
                   <div class="debt-warning-desc">
-                    Talent is under intense creditor pressure. Settle their debt from studio funds to earn <strong>+45 Loyalty</strong> and a <strong>35% permanent discount</strong> on all future acting fees!
+                    Talent is under intense creditor pressure. Settle their debt from studio funds to earn <strong>+45 Loyalty</strong> and a <strong>35% permanent discount</strong> on all future acting quotes!
                   </div>
                 </div>
               </div>
@@ -561,7 +577,7 @@ window.StudioGame.UI.TalentScreen = (function() {
                   </div>
                 `).join('')}
               </div>
-            ` : '<p class="empty-dossier-note">Aspiring newcomer without major studio releases yet.</p>'}
+            ` : '<p class="empty-dossier-note text-muted">Aspiring newcomer without major studio releases yet.</p>'}
           </div>
 
           <!-- Interactive Negotiation Section -->
@@ -580,12 +596,12 @@ window.StudioGame.UI.TalentScreen = (function() {
             ` : `
               <div class="negotiation-form">
                 <h4 class="negotiation-form-title">🤝 Negotiate Studio Contract</h4>
-                <p class="negotiation-form-sub">Pitch an exclusive retention contract to secure ${talent.name} for upcoming films and commercials.</p>
+                <p class="negotiation-form-sub">Pitch an exclusive retention contract to secure ${talent.name} for upcoming films and commercials at 80% discount.</p>
 
                 <div class="negotiation-inputs-grid">
                   <div class="form-group">
                     <label class="form-label">Contract Duration</label>
-                    <select id="negMonths" class="form-select-control">
+                    <select id="negMonths" class="form-input">
                       <option value="6">6 Months Retention</option>
                       <option value="12" selected>12 Months (1 Year)</option>
                       <option value="24">24 Months (2 Years)</option>
@@ -595,7 +611,7 @@ window.StudioGame.UI.TalentScreen = (function() {
 
                   <div class="form-group">
                     <label class="form-label">Screen Intimacy Clause</label>
-                    <select id="negIntimacy" class="form-select-control">
+                    <select id="negIntimacy" class="form-input">
                       <option value="strict_wholesome" ${talent.pureImage === 'wholesome' ? 'selected' : ''}>Strict Wholesome (No Intimacy / No Kissing)</option>
                       <option value="standard" ${talent.pureImage === 'romantic' ? 'selected' : ''}>Standard Cinematic Romance</option>
                       <option value="bold_permissible" ${talent.pureImage === 'bold' ? 'selected' : ''}>Bold & Sensational Permitted</option>
@@ -606,7 +622,7 @@ window.StudioGame.UI.TalentScreen = (function() {
                 <div class="form-group">
                   <div class="slider-header-row">
                     <label class="form-label">Upfront Signing Bonus</label>
-                    <span class="slider-display-val highlight-gold" id="upfrontDisplay">${window.StudioGame.Systems.Finance.formatRupees(talent.averageFee * 2)}</span>
+                    <span class="slider-display-val highlight-gold font-mono" id="upfrontDisplay">${window.StudioGame.Systems.Finance.formatRupees(talent.averageFee * 2)}</span>
                   </div>
                   <input type="range" class="form-range" id="negUpfrontSlider"
                     min="${Math.round(talent.averageFee * 0.5)}"
@@ -619,10 +635,10 @@ window.StudioGame.UI.TalentScreen = (function() {
                   </div>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group mt-2">
                   <div class="slider-header-row">
                     <label class="form-label">Backend Profit Share</label>
-                    <span class="slider-display-val highlight-cyan" id="profitShareDisplay">10%</span>
+                    <span class="slider-display-val highlight-cyan font-mono" id="profitShareDisplay">10%</span>
                   </div>
                   <input type="range" class="form-range" id="negProfitSlider" min="0" max="25" step="1" value="10">
                   <div class="slider-extremes">
@@ -634,7 +650,7 @@ window.StudioGame.UI.TalentScreen = (function() {
                 <!-- Feedback / Status message container -->
                 <div id="negotiationFeedbackArea"></div>
 
-                <div class="negotiation-actions-row">
+                <div class="negotiation-actions-row mt-3">
                   <button class="btn btn-primary btn-full" id="btnSubmitNegotiation">
                     Submit Contract Proposal
                   </button>
@@ -659,7 +675,6 @@ window.StudioGame.UI.TalentScreen = (function() {
       if (e.target === backdrop) close();
     });
 
-    // Debt Bailout button listener
     backdrop.querySelector('#btnBailoutDebt')?.addEventListener('click', () => {
       const res = window.StudioGame.Systems.Talent.bailoutDebt(state, talent.id);
       if (res.success) {
@@ -673,7 +688,6 @@ window.StudioGame.UI.TalentScreen = (function() {
       }
     });
 
-    // Release Contract button listener
     backdrop.querySelector('#btnReleaseContract')?.addEventListener('click', () => {
       window.StudioGame.Systems.Talent.releaseContract(state, talent.id);
       window.StudioGame.State.autosave();
@@ -683,7 +697,6 @@ window.StudioGame.UI.TalentScreen = (function() {
       openTalentDossierModal(talent.id, state, callbacks);
     });
 
-    // Slider display updates
     const upfrontSlider = backdrop.querySelector('#negUpfrontSlider');
     const upfrontDisplay = backdrop.querySelector('#upfrontDisplay');
     if (upfrontSlider && upfrontDisplay) {
@@ -700,7 +713,6 @@ window.StudioGame.UI.TalentScreen = (function() {
       });
     }
 
-    // Submit Negotiation button listener
     backdrop.querySelector('#btnSubmitNegotiation')?.addEventListener('click', () => {
       const upfrontFee = parseInt(upfrontSlider?.value || 0, 10);
       const profitShare = parseInt(profitSlider?.value || 0, 10);

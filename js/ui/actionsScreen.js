@@ -1117,30 +1117,117 @@ window.StudioGame.UI.ActionsScreen = (function() {
     const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
     const formatFans = window.StudioGame.Systems.Talent.formatFans;
     const projectSystem = window.StudioGame.Systems.Projects;
-    const genres = window.StudioGame.Data.Contracts?.genres || [];
     const talents = state.talent || [];
-    const signedStars = talents.filter(t => t.contractStatus === 'signed_player');
-    const availableTalents = signedStars.length > 0 ? signedStars : talents.slice(0, 15);
 
-    if (!commissionState.talentId || !talents.some(t => t.id === commissionState.talentId)) {
-      commissionState.talentId = availableTalents[0]?.id || talents[0]?.id;
+    // 1. Filter ONLY signed talents with active remaining contract days
+    const signedTalents = talents.filter(t => t.contractStatus === 'signed_player' && (t.contractDaysRemaining || 0) > 0);
+
+    // 2. Determine busy status based on current active studio projects
+    const busyTalentMap = {};
+    (state.studio.projects || []).forEach(p => {
+      if (p.leadActorId) busyTalentMap[p.leadActorId] = p.name;
+      if (p.leadActressId) busyTalentMap[p.leadActressId] = p.name;
+    });
+
+    const freeSignedTalents = signedTalents.filter(t => !busyTalentMap[t.id]);
+    const busySignedTalents = signedTalents.filter(t => !!busyTalentMap[t.id]);
+
+    // Case A: No signed talent in studio roster
+    if (signedTalents.length === 0) {
+      return `
+        <div class="card p-4 text-center">
+          <div class="empty-icon" style="font-size: 3rem; margin-bottom: 0.5rem;">📸</div>
+          <h3 class="section-title">Commercial Quick Shoots</h3>
+          <div class="badge badge-amber font-mono mb-3">EXCLUSIVE SIGNED TALENT REQUIRED</div>
+          <p class="text-muted text-sm max-w-lg mx-auto mb-3">
+            Industry regulations strictly require commercial photoshoots and short ad films to feature talent under an active studio contract. Free agents and rival stars cannot be assigned.
+          </p>
+          <div class="info-callout text-left max-w-md mx-auto mb-4">
+            <div class="callout-icon">💡</div>
+            <div class="callout-text text-xs">
+              Sign an actor or model on a flexible 1 to 36-month contract in the <strong>Talent Scout</strong> tab to immediately unlock fast 2-day commercial photoshoots for cash flow!
+            </div>
+          </div>
+          <div class="flex justify-center gap-2">
+            <button class="btn btn-primary btn-sign-talent-shortcut" id="btnCommissionGoTalent">
+              ⭐ Go to Talent Scout & Sign Artistes
+            </button>
+            <button class="btn btn-secondary" id="btnCommissionQuickSign">
+              ⚡ Quick Sign Modal (1-6 Mo)
+            </button>
+          </div>
+        </div>
+      `;
     }
 
-    const selectedTalent = talents.find(t => t.id === commissionState.talentId) || talents[0];
+    // Case B: Signed talent exists, but ALL are busy filming on set
+    if (freeSignedTalents.length === 0) {
+      return `
+        <div class="card p-4 text-center">
+          <div class="empty-icon" style="font-size: 3rem; margin-bottom: 0.5rem;">🎬</div>
+          <h3 class="section-title">All Signed Artistes Are Busy on Set</h3>
+          <div class="badge badge-rose font-mono mb-3">NO FREE SIGNED TALENT AVAILABLE</div>
+          <p class="text-muted text-sm max-w-lg mx-auto mb-3">
+            All ${signedTalents.length} artistes under contract with your studio are currently shooting active productions on the floor:
+          </p>
+          <div class="busy-talent-roster max-w-md mx-auto mb-4 text-left">
+            ${busySignedTalents.map(t => `
+              <div class="card p-2 mb-2 flex items-center justify-between" style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25);">
+                <div>
+                  <div class="font-bold text-sm">${escapeHtml(t.name)}</div>
+                  <div class="text-xs text-muted">Currently shooting: <strong class="highlight-amber">${escapeHtml(busyTalentMap[t.id])}</strong></div>
+                </div>
+                <span class="badge badge-rose">BUSY ON SET</span>
+              </div>
+            `).join('')}
+          </div>
+          <p class="text-xs text-muted mb-3">
+            Wait for active shoots to wrap (commercial photoshoots take only 2 days), or sign an additional artiste to take on new commercial brand campaigns.
+          </p>
+          <div class="flex justify-center gap-2">
+            <button class="btn btn-primary btn-sign-talent-shortcut" id="btnCommissionGoTalent">
+              ⭐ Scout & Sign Another Artiste
+            </button>
+            <button class="btn btn-secondary" id="btnCommissionQuickSign">
+              ⚡ Quick Sign Modal (1-6 Mo)
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    // Case C: Free signed artistes are available!
+    if (!commissionState.talentId || !freeSignedTalents.some(t => t.id === commissionState.talentId)) {
+      commissionState.talentId = freeSignedTalents[0].id;
+    }
+
+    const selectedTalent = freeSignedTalents.find(t => t.id === commissionState.talentId) || freeSignedTalents[0];
+    const avatarUrl = window.StudioGame.Face.generate({ gender: selectedTalent.gender, seed: selectedTalent.avatarSeed || selectedTalent.name });
+
     const bill = projectSystem.calculateCostBill(state, {
       format: commissionState.format,
-      talentId: commissionState.talentId,
+      talentId: selectedTalent.id,
       talent: selectedTalent
     });
 
+    const canAfford = state.studio.cash >= bill.totalCost;
+    const canLaunch = canAfford && bill.canLaunch;
+
     return `
       <div class="card p-3 mb-3">
-        <h3 class="section-title">Commercial Quick Project</h3>
-        <p class="text-muted text-xs">Execute fast-turnaround catalog shoots or viral commercial promos for immediate cash inflow.</p>
+        <div class="card-header-between mb-2">
+          <div>
+            <h3 class="section-title">Commercial Quick Project</h3>
+            <p class="text-muted text-xs">Execute fast-turnaround catalog shoots or viral commercial promos with free signed talent for immediate cash inflow.</p>
+          </div>
+          <span class="badge badge-emerald font-mono">
+            ${freeSignedTalents.length} Free Signed Artiste${freeSignedTalents.length > 1 ? 's' : ''} Ready
+          </span>
+        </div>
 
         <div class="form-group mt-2">
           <label class="form-label">Client Brand / Campaign Name</label>
-          <input type="text" id="commName" class="form-input" value="${escapeHtml(commissionState.name)}">
+          <input type="text" id="commName" class="form-input" value="${escapeHtml(commissionState.name || `${selectedTalent.name} Campaign`)}">
         </div>
 
         <div class="form-group mt-2">
@@ -1151,22 +1238,50 @@ window.StudioGame.UI.ActionsScreen = (function() {
           </select>
         </div>
 
+        <!-- Selected Star Visual Badge -->
+        <div class="selected-star-banner my-3 p-3 rounded flex items-center gap-3" style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3);">
+          <div class="casting-card-avatar" style="width: 54px; height: 54px; border-radius: 8px; overflow: hidden; flex-shrink: 0;">
+            <img src="${avatarUrl}" alt="${selectedTalent.name}" style="width: 100%; height: 100%; object-fit: cover;" />
+          </div>
+          <div style="flex: 1;">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-sm">${escapeHtml(selectedTalent.name)}</span>
+              <span class="badge badge-emerald text-2xs">🟢 FREE & SIGNED (${selectedTalent.contractDaysRemaining}D Left)</span>
+            </div>
+            <div class="text-xs text-muted mt-1">
+              <span>🔥 ${formatFans(selectedTalent.fans)} Fans</span> &bull; 
+              <span>Acting: ${selectedTalent.acting}</span> &bull; 
+              <span>Glamour: ${selectedTalent.glamour}</span>
+            </div>
+            <div class="text-xs highlight-gold mt-1">
+              🌟 Star Fame Multiplier: <strong>${bill.fameMultiplier}x Client Payout</strong>
+            </div>
+          </div>
+        </div>
+
         <div class="form-group mt-2">
           <div class="flex items-center justify-between mb-1">
-            <label class="form-label mb-0 font-bold">Attached Talent / Star:</label>
-            <span class="text-xs highlight-gold">🔥 ${formatFans(selectedTalent.fans)} Fans &bull; ${selectedTalent.category || 'Star'}</span>
+            <label class="form-label mb-0 font-bold">Select Free Signed Talent:</label>
+            <button class="btn btn-2xs btn-outline-gold" id="btnCommissionQuickSign" type="button">+ Sign More Talent</button>
           </div>
           <select id="commTalent" class="form-input font-bold">
-            ${talents.map(t => {
-              const isSigned = t.contractStatus === 'signed_player';
-              return `<option value="${t.id}" ${commissionState.talentId === t.id ? 'selected' : ''}>
-                ${isSigned ? '⭐ [SIGNED 80% OFF] ' : ''}${t.name} (🔥 ${formatFans(t.fans)} &bull; ${t.category})
-              </option>`;
-            }).join('')}
+            <optgroup label="⭐ Free Signed Artistes (Ready to Shoot)">
+              ${freeSignedTalents.map(t => `
+                <option value="${t.id}" ${commissionState.talentId === t.id ? 'selected' : ''}>
+                  ⭐ ${t.name} (Free &bull; 🔥 ${formatFans(t.fans)} &bull; ${t.category})
+                </option>
+              `).join('')}
+            </optgroup>
+            ${busySignedTalents.length > 0 ? `
+              <optgroup label="⛔ Busy on Floor (Unavailable)">
+                ${busySignedTalents.map(t => `
+                  <option value="${t.id}" disabled>
+                    ⛔ ${t.name} (Busy filming: ${escapeHtml(busyTalentMap[t.id])})
+                  </option>
+                `).join('')}
+              </optgroup>
+            ` : ''}
           </select>
-          <div class="text-xs highlight-emerald mt-1">
-            🌟 Star Fame Multiplier: <strong>${bill.fameMultiplier}x Client Payout</strong>
-          </div>
         </div>
 
         <div class="p-2 my-2 rounded" style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25);">
@@ -1180,8 +1295,11 @@ window.StudioGame.UI.ActionsScreen = (function() {
           </div>
         </div>
 
-        <button class="btn btn-primary btn-full mt-3" id="btnLaunchCommission" ${state.studio.cash < bill.totalCost ? 'disabled' : ''}>
-          Launch Commercial Shoot (${formatRupees(bill.totalCost)})
+        <button class="btn btn-primary btn-full mt-3" id="btnLaunchCommission" ${!canLaunch ? 'disabled' : ''}>
+          ${!canAfford 
+            ? `Insufficient Studio Cash (${formatRupees(bill.totalCost)} required)` 
+            : `📸 Launch ${commissionState.format} (${formatRupees(bill.totalCost)})`
+          }
         </button>
       </div>
     `;
@@ -1401,6 +1519,21 @@ window.StudioGame.UI.ActionsScreen = (function() {
       commissionState.name = e.target.value;
     });
 
+    container.querySelectorAll('#btnCommissionGoTalent, .btn-sign-talent-shortcut').forEach(btn => {
+      btn.addEventListener('click', () => {
+        window.StudioGame.App.showTalent();
+      });
+    });
+
+    container.querySelectorAll('#btnCommissionQuickSign').forEach(btn => {
+      btn.addEventListener('click', () => {
+        openStarCastingModal('both', state, (signedId) => {
+          commissionState.talentId = signedId;
+          render(container, state, callbacks);
+        });
+      });
+    });
+
     container.querySelector('#btnLaunchCommission')?.addEventListener('click', () => {
       const res = window.StudioGame.Systems.Projects.launchCustomProject(state, {
         name: commissionState.name,
@@ -1567,7 +1700,9 @@ window.StudioGame.UI.ActionsScreen = (function() {
 
     const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
     const formatFans = window.StudioGame.Systems.Talent.formatFans;
-    const allStars = (state.talent || []).filter(t => t.gender === gender);
+    const allStars = (!gender || gender === 'both' || gender === 'all')
+      ? (state.talent || [])
+      : (state.talent || []).filter(t => t.gender === gender);
 
     let activeModalTab = 'signed'; // 'signed' | 'free_agents'
     let searchTxt = '';
@@ -1591,7 +1726,7 @@ window.StudioGame.UI.ActionsScreen = (function() {
         <div class="modal-card modal-lg slide-up">
           <div class="modal-header">
             <div class="modal-title-wrap">
-              <span class="badge badge-amber">${gender === 'female' ? 'Leading Actress' : 'Leading Actor'}</span>
+              <span class="badge badge-amber">${gender === 'female' ? 'Leading Actress' : (gender === 'male' ? 'Leading Actor' : 'Studio Artiste')}</span>
               <h2 class="modal-title">Star Cast Selection</h2>
             </div>
             <button class="btn-icon-close" id="btnCloseCastingModal" aria-label="Close">&times;</button>

@@ -11,6 +11,10 @@ A deep, multi-turn studio management simulation where you and your partner build
   - Automatically defaults lead hero and heroine selections to signed studio artistes (with an 80% discount) or top available stars.
   - Quick-sign exclusive 3 to 36-month contracts directly from the casting modal or cast guest stars at standard market quotes.
   - Exported canonical `greenlightCinemaProject` and `launchCinemaFeature` aliases so production launches flawlessly onto the floor.
+- **Commercial Photoshoot & Ad Film Exclusivity (Signed & Free Talent Only)**:
+  - **Strict Studio Artiste Restriction**: Commercial photoshoots and ad films can only be headlined by artistes under an active, exclusive studio contract (1 to 36 months).
+  - **Floor Availability Check**: Artistes currently filming on another production set (cinema features, web series, or concurrent commercial shoots) are marked busy and blocked until their ongoing shoot wraps.
+  - **Clear Visual UI & Guidance**: The Commercial Quick Project screen dynamically detects free vs busy studio artistes, lists busy stars as disabled with active shoot details, and provides quick shortcuts to scout or sign new talent when no free artistes are available.
 - **Custom Commercial Shoot Execution & Realistic Endorsement Quotes**:
   - Attached full event listener and state pipeline for `#btnLaunchCommission`.
   - Realistic ad fees for commercial photoshoots and short ad films (~5% of feature movie fees, capped at ₹75 Lakhs with 80% signed discount) ensuring accessible, profitable ad shoots.

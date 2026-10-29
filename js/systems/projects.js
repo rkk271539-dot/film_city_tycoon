@@ -402,12 +402,25 @@ window.StudioGame.Systems.Projects = (function() {
     ensureProjectState(state);
     const format = params.format || 'Commercial Photoshoot';
     const isAd = format === 'Short Ad Film' || format === 'Ad Film Commercial';
-    const talent = params.talent || (params.talentId ? (state.talent || []).find(t => t.id === params.talentId) : null) || (state.talent && state.talent[0]) || { name: 'Simran Ahuja', averageFee: 35000, fans: 500000 };
+    
+    let talent = null;
+    if (params.talent) talent = params.talent;
+    else if (params.talentId) talent = (state.talent || []).find(t => t.id === params.talentId);
+    
+    if (!talent) {
+      const signedTalents = (state.talent || []).filter(t => t.contractStatus === 'signed_player' && (t.contractDaysRemaining || 0) > 0);
+      const freeTalent = signedTalents.find(t => !(state.studio.projects || []).some(p => p.leadActorId === t.id || p.leadActressId === t.id));
+      talent = freeTalent || signedTalents[0] || (state.talent && state.talent[0]) || { name: 'Simran Ahuja', averageFee: 35000, fans: 500000 };
+    }
+
+    const isSigned = !!(talent && talent.contractStatus === 'signed_player' && (talent.contractDaysRemaining || 0) > 0);
+    const busyProject = talent ? (state.studio.projects || []).find(p => p.leadActorId === talent.id || p.leadActressId === talent.id) : null;
+    const isFree = !busyProject;
 
     // Commercial endorsement quote is ~5% of feature fee (capped realistically between ₹35k and ₹75L)
     const baseEndorsementFee = talent.flatFee || Math.min(7500000, Math.max(35000, Math.round((talent.averageFee || 50000) * 0.05)));
     let modelFee = baseEndorsementFee;
-    if (talent.contractStatus === 'signed_player') {
+    if (isSigned) {
       modelFee = Math.round(modelFee * 0.2); // 80% discount for signed studio talent
     }
 
@@ -447,9 +460,12 @@ window.StudioGame.Systems.Projects = (function() {
       format,
       talentName: talent.name,
       talentId: talent.id,
+      isSigned: isSigned,
+      isFree: isFree,
+      busyProjectName: busyProject ? busyProject.name : null,
       durationDays: isAd ? 8 : 2,
       lineItems: [
-        { label: 'Lead Model / Talent Fee', amount: Math.round(modelFee), note: talent.contractStatus === 'signed_player' ? `${talent.name} (Signed 80% Off)` : talent.name },
+        { label: 'Lead Model / Talent Fee', amount: Math.round(modelFee), note: isSigned ? `${talent.name} (Signed 80% Off)` : `${talent.name} (Unsigned)` },
         { label: 'Sound Stage Floor & Electrical Rent', amount: Math.round(studioRent), note: 'Studio Facilities' },
         { label: '4K Cinema Optics & Rigging Rent', amount: Math.round(cameraEquipmentRent), note: 'Digital Cinema' },
         { label: 'Cinematographer, Gaffer & Crew', amount: Math.round(crewAndLighting), note: 'Technical Crew' },
@@ -464,7 +480,8 @@ window.StudioGame.Systems.Projects = (function() {
       profit: profit,
       fameMultiplier: parseFloat(fameMultiplier.toFixed(2)),
       cashRemainingAfter: state.studio.cash - totalCost,
-      canAfford: state.studio.cash >= totalCost
+      canAfford: state.studio.cash >= totalCost,
+      canLaunch: isSigned && isFree && (state.studio.cash >= totalCost)
     };
   }
 
@@ -476,26 +493,51 @@ window.StudioGame.Systems.Projects = (function() {
       return { success: false, error: `Studio floors at capacity (${activeCount}/${maxCapacity}).` };
     }
 
-    const bill = calculateCostBill(state, params);
+    const talentId = params.talentId;
+    const talent = (state.talent || []).find(t => t.id === talentId);
+    if (!talent) {
+      return { success: false, error: 'Please select an artiste for the commercial shoot.' };
+    }
+
+    if (talent.contractStatus !== 'signed_player' || (talent.contractDaysRemaining || 0) <= 0) {
+      return {
+        success: false,
+        error: `Only signed contract talent can do commercial photoshoots. ${talent.name} does not have an active studio contract.`
+      };
+    }
+
+    const busyProject = (state.studio.projects || []).find(p => p.leadActorId === talent.id || p.leadActressId === talent.id);
+    if (busyProject) {
+      return {
+        success: false,
+        error: `${talent.name} is currently busy filming "${busyProject.name}". Only free talent can do commercial photoshoots.`
+      };
+    }
+
+    const bill = calculateCostBill(state, { ...params, talentId: talent.id, talent: talent });
     if (!bill.canAfford) {
-      return { success: false, error: 'Insufficient studio funds to cover the finalized project bill.' };
+      return {
+        success: false,
+        error: `Insufficient studio funds to cover the shoot bill (Requires ${window.StudioGame.Systems.Finance.formatRupees(bill.totalCost)}).`
+      };
     }
 
     state.studio.cash -= bill.totalCost;
+    talent.daysIdle = 0;
 
     const newProject = {
       id: 'proj_cust_' + Date.now(),
-      name: params.name || `${params.genreName || 'Fashion'} Showcase`,
+      name: params.name || `${talent.name} ${bill.format}`,
       clientName: 'Studio Commissioned Project',
       format: bill.format,
-      genreName: params.genreName || 'Haute Couture',
-      genreIcon: params.genreIcon || '🎬',
+      genreName: params.genreName || 'Commercial Campaign',
+      genreIcon: bill.format === 'Commercial Photoshoot' ? '📸' : '🎬',
       totalDays: bill.durationDays,
       daysElapsed: 0,
       agreedPayout: bill.projectedRevenue,
       upfrontInvested: bill.totalCost,
-      leadActorId: bill.talentId,
-      leadActorName: bill.talentName,
+      leadActorId: talent.id,
+      leadActorName: talent.name,
       stage: 'Pre-Production & Moodboard',
       qualityScore: 50 + Math.floor(Math.random() * 25)
     };
@@ -508,8 +550,8 @@ window.StudioGame.Systems.Projects = (function() {
       date: state.clock.formattedDate,
       category: 'Production',
       title: `Shoot Commenced: ${newProject.name}`,
-      body: `Greenlit ${bill.format} starring ${bill.talentName}. Budget invested: ${window.StudioGame.Systems.Finance.formatRupees(bill.totalCost)}.`,
-      icon: '🎬'
+      body: `Greenlit ${bill.format} starring ${talent.name}. Budget invested: ${window.StudioGame.Systems.Finance.formatRupees(bill.totalCost)}.`,
+      icon: bill.format === 'Commercial Photoshoot' ? '📸' : '🎬'
     });
 
     return { success: true, project: newProject };

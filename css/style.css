@@ -6637,3 +6637,131 @@ html, body {
   color: var(--accent-gold);
   letter-spacing: 0.5px;
 }
+
+
+/* ==========================================================================
+   STUDIO ALL-TIME TOP 5 BOX OFFICE BLOCKBUSTERS (v1.06)
+   ========================================================================== */
+
+.top-projects-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.top-project-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.top-project-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.top-project-card.rank-1 {
+  border-color: rgba(245, 158, 11, 0.45);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(239, 68, 68, 0.04) 100%);
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.08);
+}
+
+.top-project-medal-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+}
+
+.top-project-medal {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.top-project-rank-num {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+
+.top-project-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.top-project-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.top-project-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: 0.2px;
+  margin: 0;
+}
+
+.top-project-stars-row {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.top-project-meta-row {
+  font-size: 11px;
+  color: var(--text-dim);
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.top-project-gross-col {
+  text-align: right;
+  min-width: 140px;
+}
+
+.top-project-gross-val {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--accent-amber);
+  font-family: var(--font-mono);
+}
+
+.top-project-gross-lbl {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+@media (max-width: 650px) {
+  .top-project-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .top-project-gross-col {
+    text-align: left;
+    min-width: 100%;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+}

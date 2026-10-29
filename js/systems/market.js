@@ -1,7 +1,9 @@
 /**
  * Dalal Street Stock Exchange Engine
- * Implements realistic order-book buy/sell pressure, strict -8% to +8% daily circuit breaker caps,
- * technical indicators (SMA, RSI, trend signals), fundamentals, portfolio management, and studio IPOs.
+ * Implements realistic dynamic two-way market cycles (Bulls, Profit Booking, Corrections, Accumulation),
+ * order-book buy/sell pressure, institutional profit-taking when RSI > 68, value hunting when RSI < 35,
+ * sensitivity to studio box office hits/flops, debt, scandals, SEBI circuit breakers (-8% to +8%),
+ * technical indicators (14-Day RSI, SMA20, trend shifts), portfolio management, and studio IPOs.
  */
 
 window.StudioGame = window.StudioGame || {};
@@ -18,12 +20,19 @@ window.StudioGame.Systems.Market = (function() {
         indexHistory: [4180, 4210, 4235, 4250],
         companies: [],
         portfolio: [],
+        sentimentPhase: 'bull_rally',
+        sentimentDaysRemaining: 21,
         isStudioPublic: false,
         studioTicker: null,
         studioSharePrice: 0,
         studioSharesTotal: 10000000,
         studioPublicFloatPct: 0
       };
+    }
+
+    if (!state.market.sentimentPhase) {
+      state.market.sentimentPhase = 'bull_rally';
+      state.market.sentimentDaysRemaining = 18;
     }
 
     if (!state.market.companies || state.market.companies.length === 0) {
@@ -33,6 +42,18 @@ window.StudioGame.Systems.Market = (function() {
         state.market.companies = [];
       }
     }
+
+    // Ensure baseline trackers exist for all companies
+    state.market.companies.forEach(comp => {
+      if (comp.basePrice === undefined) comp.basePrice = comp.sharePrice;
+      if (comp.basePE === undefined) comp.basePE = comp.peRatio || 24.0;
+      if (comp.consecutiveUpDays === undefined) comp.consecutiveUpDays = 0;
+      if (comp.consecutiveDownDays === undefined) comp.consecutiveDownDays = 0;
+      if (comp.rsi === undefined) comp.rsi = 50;
+      if (!comp.history || comp.history.length === 0) {
+        comp.history = [comp.sharePrice];
+      }
+    });
 
     if (!state.market.portfolio) {
       state.market.portfolio = [];
@@ -45,105 +66,337 @@ window.StudioGame.Systems.Market = (function() {
   function dailyTick(state) {
     ensureMarketState(state);
 
-    // 1. Sector Nifty Media index fluctuation (-2.5% to +2.5%)
-    const indexMovePct = (Math.random() - 0.49) * 2.5;
+    // 1. Advance macro market sentiment regime cycle
+    state.market.sentimentDaysRemaining = (state.market.sentimentDaysRemaining || 15) - 1;
+    if (state.market.sentimentDaysRemaining <= 0) {
+      rotateMarketSentiment(state);
+    }
+
+    // 2. Calculate Sector Nifty Media index fluctuation
+    let regimeBaseDrift = 0;
+    if (state.market.sentimentPhase === 'bull_rally') {
+      regimeBaseDrift = 0.45; // Moderate bullish drift
+    } else if (state.market.sentimentPhase === 'profit_booking') {
+      regimeBaseDrift = -0.55; // Institutional profit booking wave
+    } else if (state.market.sentimentPhase === 'bear_correction') {
+      regimeBaseDrift = -0.90; // Correction pullback
+    } else {
+      regimeBaseDrift = 0.15; // Accumulation / Sideways base
+    }
+
+    const indexMovePct = parseFloat((regimeBaseDrift + (Math.random() - 0.49) * 2.1).toFixed(2));
     state.market.niftyMediaIndex = Math.max(1000, Math.round(state.market.niftyMediaIndex * (1 + indexMovePct / 100)));
     state.market.indexHistory = state.market.indexHistory || [];
     state.market.indexHistory.push(state.market.niftyMediaIndex);
     if (state.market.indexHistory.length > 30) state.market.indexHistory.shift();
 
-    // 2. Individual company fluctuations
+    // 3. Individual company fluctuations with two-way dynamics
     state.market.companies.forEach(comp => {
-      // Order book pressure drift
-      // Market sentiment pulls buy pressure toward index move
-      let sentimentDelta = indexMovePct * 3.5;
-      comp.buyPressure = Math.max(15, Math.min(85, comp.buyPressure + sentimentDelta + (Math.random() - 0.5) * 8));
-
-      // Calculate raw daily percentage move driven by net pressure
-      // Neutral pressure is 50. Above 50 = buy pressure, Below 50 = sell pressure
-      let netPressureDelta = ((comp.buyPressure - 50) / 50) * 5.5 + (Math.random() - 0.5) * 2.2;
-
-      // STRICT CIRCUIT BREAKER ENFORCEMENT: -8% to +8% Cap as per Section 3.5
-      const cappedMovePct = Math.max(-8.0, Math.min(8.0, netPressureDelta));
-
-      const oldPrice = comp.sharePrice;
-      comp.sharePrice = Math.max(1, Math.round(comp.sharePrice * (1 + cappedMovePct / 100)));
-      comp.dayChangePct = parseFloat((((comp.sharePrice - oldPrice) / oldPrice) * 100).toFixed(2));
-
-      // Update price history (up to 30 days)
-      comp.history = comp.history || [];
-      comp.history.push(comp.sharePrice);
-      if (comp.history.length > 30) comp.history.shift();
-
-      // Technical Indicators update
-      updateTechnicalIndicators(comp);
+      tickCompanyStock(state, comp, indexMovePct);
     });
 
-    // 3. Update player studio stock if public
+    // 4. Update player studio stock if public
     if (state.market.isStudioPublic) {
-      tickPlayerStudioStock(state);
+      tickPlayerStudioStock(state, indexMovePct);
     }
   }
 
   /**
-   * Update RSI, Moving Averages, and trend signals
+   * Rotate market sentiment regimes periodically
+   */
+  function rotateMarketSentiment(state) {
+    const regimes = ['bull_rally', 'profit_booking', 'bear_correction', 'accumulation'];
+    const current = state.market.sentimentPhase || 'bull_rally';
+    let next;
+
+    // Natural market cycle progression
+    if (current === 'bull_rally') {
+      next = Math.random() < 0.70 ? 'profit_booking' : 'bear_correction';
+    } else if (current === 'profit_booking') {
+      next = Math.random() < 0.60 ? 'bear_correction' : 'accumulation';
+    } else if (current === 'bear_correction') {
+      next = Math.random() < 0.75 ? 'accumulation' : 'bull_rally';
+    } else {
+      next = 'bull_rally';
+    }
+
+    state.market.sentimentPhase = next;
+    state.market.sentimentDaysRemaining = 14 + Math.floor(Math.random() * 16); // 14 to 30 days
+  }
+
+  /**
+   * Simulate realistic stock price action for a company
+   */
+  function tickCompanyStock(state, comp, indexMovePct) {
+    // 1. Natural mean reversion force toward neutral 50% pressure
+    let pressureShift = (50 - comp.buyPressure) * 0.16;
+
+    // 2. Macro sector sentiment contribution
+    pressureShift += indexMovePct * 2.2;
+
+    // 3. Technical Indicator Feedback:
+    // When RSI > 68: Institutional algos trigger profit booking (dumping shares to lock in gains)
+    if (comp.rsi > 68) {
+      const overboughtPenalty = (comp.rsi - 60) * 0.55;
+      pressureShift -= overboughtPenalty;
+    }
+    // When RSI < 35: Bargain hunters and value funds accumulate dips
+    else if (comp.rsi < 35) {
+      const oversoldSupport = (40 - comp.rsi) * 0.50;
+      pressureShift += oversoldSupport;
+    }
+
+    // 4. Fatigue from consecutive up or down days (prevents infinite green runs)
+    if (comp.consecutiveUpDays >= 3) {
+      pressureShift -= 4.5 * Math.min(3, comp.consecutiveUpDays - 2);
+    }
+    if (comp.consecutiveDownDays >= 3) {
+      pressureShift += 3.5 * Math.min(3, comp.consecutiveDownDays - 2);
+    }
+
+    // 5. Valuation Resistance & Support (P/E Gravity)
+    if (comp.peRatio > 36) {
+      pressureShift -= Math.min(7, (comp.peRatio - 36) * 0.35);
+    } else if (comp.peRatio < 16) {
+      pressureShift += Math.min(6, (16 - comp.peRatio) * 0.40);
+    }
+
+    // 6. Balance Sheet & Debt Burden Impact
+    if (comp.debtEquity > 0.38 && indexMovePct < 0) {
+      // High-debt stocks suffer 1.5x sharper drops during red market days
+      pressureShift -= 3.0;
+    }
+
+    // 7. Diminishing returns multiplier on runaway prices
+    if (comp.basePrice && comp.sharePrice > comp.basePrice * 1.35) {
+      const expansion = (comp.sharePrice - comp.basePrice * 1.35) / comp.basePrice;
+      pressureShift -= Math.min(8, expansion * 12);
+    }
+
+    // 8. Studio Corporate Linkage (Box Office & Operating Catalysts)
+    applyStudioLinkageCatalysts(state, comp, pressureShift);
+
+    // Apply noise and clamp buy pressure between 15% and 85%
+    const randomNoise = (Math.random() - 0.5) * 5.0;
+    comp.buyPressure = Math.max(15, Math.min(85, comp.buyPressure + pressureShift + randomNoise));
+
+    // Calculate daily percentage move driven by order book balance
+    // 50% is equilibrium. Above 50 = net buy volume, Below 50 = net sell dump
+    let netPressureDelta = ((comp.buyPressure - 50) / 50) * 4.6 + (indexMovePct * 0.5) + (Math.random() - 0.5) * 1.6;
+
+    // STRICT CIRCUIT BREAKER ENFORCEMENT: -8% to +8% Cap as per Section 3.5
+    const cappedMovePct = Math.max(-8.0, Math.min(8.0, netPressureDelta));
+
+    const oldPrice = comp.sharePrice;
+    comp.sharePrice = Math.max(1, Math.round(comp.sharePrice * (1 + cappedMovePct / 100)));
+    comp.dayChangePct = parseFloat((((comp.sharePrice - oldPrice) / oldPrice) * 100).toFixed(2));
+
+    // Update streak counters
+    if (comp.dayChangePct > 0.2) {
+      comp.consecutiveUpDays = (comp.consecutiveUpDays || 0) + 1;
+      comp.consecutiveDownDays = 0;
+    } else if (comp.dayChangePct < -0.2) {
+      comp.consecutiveDownDays = (comp.consecutiveDownDays || 0) + 1;
+      comp.consecutiveUpDays = 0;
+    } else {
+      comp.consecutiveUpDays = 0;
+      comp.consecutiveDownDays = 0;
+    }
+
+    // Update dynamic P/E ratio
+    if (comp.basePE && comp.basePrice) {
+      comp.peRatio = parseFloat((comp.basePE * (comp.sharePrice / comp.basePrice)).toFixed(1));
+    }
+
+    // Update price history (30-day window)
+    comp.history = comp.history || [];
+    comp.history.push(comp.sharePrice);
+    if (comp.history.length > 30) comp.history.shift();
+
+    // Technical Indicators update
+    updateTechnicalIndicators(comp);
+  }
+
+  /**
+   * Apply linkage between listed securities and studio events
+   */
+  function applyStudioLinkageCatalysts(state, comp, currentShift) {
+    if (!state.studios) return;
+
+    // Check if company corresponds to a studio (e.g. YRFM, TSRM, ZEEL, TIPS, BTLF, PVRI)
+    let matchedStudio = null;
+    const allStudios = [...(state.studios.legacy || []), ...(state.studios.unicorns || [])];
+    matchedStudio = allStudios.find(s => s.ticker === comp.ticker);
+
+    if (matchedStudio) {
+      // Check active theatrical releases
+      if (matchedStudio.activeReleases && matchedStudio.activeReleases.length > 0) {
+        const topRun = matchedStudio.activeReleases[0];
+        if (topRun.totalGross > 200000000) {
+          // Strong box office hit provides steady buyer support
+          comp.buyPressure = Math.min(82, comp.buyPressure + 2.5);
+        }
+      } else {
+        // Dormant studio with no active releases faces slight market apathy
+        comp.buyPressure = Math.max(20, comp.buyPressure - 0.8);
+      }
+    }
+
+    // PVR Inox Multiplex: correlates with overall nationwide box office health
+    if (comp.ticker === 'PVRI') {
+      let totalIndiaBoxOffice = 0;
+      allStudios.forEach(s => {
+        (s.activeReleases || []).forEach(r => {
+          totalIndiaBoxOffice += (r.weeklyGross || 0);
+        });
+      });
+
+      if (totalIndiaBoxOffice > 150000000) {
+        comp.buyPressure = Math.min(82, comp.buyPressure + 2.0); // Booming theatre footfalls
+      } else if (totalIndiaBoxOffice < 40000000) {
+        comp.buyPressure = Math.max(20, comp.buyPressure - 2.5); // Box office drought
+      }
+    }
+  }
+
+  /**
+   * Update RSI, Moving Averages, and trend signals using Wilder 14-day calculation
    */
   function updateTechnicalIndicators(comp) {
     const hist = comp.history;
     if (!hist || hist.length < 2) return;
 
-    // 20-Day SMA
+    // 20-Day Simple Moving Average (SMA20)
     const window20 = hist.slice(-20);
     const sum20 = window20.reduce((acc, p) => acc + p, 0);
     comp.sma20 = Math.round(sum20 / window20.length);
 
-    // RSI calculation
+    // Standard Wilder 14-Day Relative Strength Index (RSI)
+    const period = Math.min(14, hist.length - 1);
     let gains = 0;
     let losses = 0;
-    for (let i = 1; i < hist.length; i++) {
+    const startIdx = hist.length - period;
+
+    for (let i = startIdx; i < hist.length; i++) {
       const diff = hist[i] - hist[i - 1];
       if (diff > 0) gains += diff;
       else losses += Math.abs(diff);
     }
 
-    const avgGain = gains / Math.max(1, hist.length - 1);
-    const avgLoss = losses / Math.max(1, hist.length - 1);
-    if (avgLoss === 0) {
-      comp.rsi = 85;
+    const avgGain = gains / period;
+    const avgLoss = losses / period;
+    let rsi = 50;
+
+    if (avgLoss === 0 && avgGain === 0) {
+      rsi = 50;
+    } else if (avgLoss === 0) {
+      rsi = 85;
+    } else if (avgGain === 0) {
+      rsi = 15;
     } else {
       const rs = avgGain / avgLoss;
-      comp.rsi = Math.round(100 - (100 / (1 + rs)));
+      rsi = Math.round(100 - (100 / (1 + rs)));
     }
 
-    // Trend classification
-    if (comp.rsi > 65) comp.trend = 'strong_bullish';
-    else if (comp.rsi > 54) comp.trend = 'bullish';
-    else if (comp.rsi > 46) comp.trend = 'neutral';
-    else if (comp.rsi > 35) comp.trend = 'bearish';
-    else comp.trend = 'strong_bearish';
+    comp.rsi = Math.max(10, Math.min(90, rsi));
+
+    // Dynamic 5-Tier Trend Classification
+    if (comp.rsi > 65) {
+      comp.trend = 'strong_bullish'; // Overbought warning: elevated correction risk
+    } else if (comp.rsi > 54) {
+      comp.trend = 'bullish';
+    } else if (comp.rsi > 45) {
+      comp.trend = 'neutral';
+    } else if (comp.rsi > 35) {
+      comp.trend = 'bearish';
+    } else {
+      comp.trend = 'strong_bearish'; // Deep oversold: value zone
+    }
   }
 
-  function tickPlayerStudioStock(state) {
+  /**
+   * Dynamic simulation for player studio stock (prevents infinite money exploit)
+   */
+  function tickPlayerStudioStock(state, indexMovePct) {
     const comp = state.market.companies.find(c => c.ticker === state.market.studioTicker);
     if (!comp) return;
 
-    // Player studio price influenced by studio reputation and cash flow
-    const repWeight = (state.studio.reputation - 50) / 50;
-    comp.buyPressure = Math.max(20, Math.min(80, 50 + repWeight * 20 + (Math.random() - 0.5) * 6));
+    // Mean reversion
+    let pressureShift = (50 - comp.buyPressure) * 0.16 + (indexMovePct * 1.8);
 
-    let netMove = ((comp.buyPressure - 50) / 50) * 5.0 + (Math.random() - 0.5) * 2.0;
+    // 1. Reputation factor: baseline pull, but NOT a one-way elevator
+    const repDeviation = (state.studio.reputation - 50) / 50; // -1.0 to +1.0
+    pressureShift += repDeviation * 2.0;
+
+    // 2. Active Productions & Theatrical Footprint:
+    // If studio has no active project running, market discounts shares
+    const activeProjects = (state.studio.activeProjects || []);
+    const runningTheatrical = activeProjects.filter(p => p.format && p.theatricalWeek > 0);
+    if (runningTheatrical.length > 0) {
+      const topTheatrical = runningTheatrical[0];
+      if ((topTheatrical.boxOfficeGross || 0) > 100000000) {
+        pressureShift += 3.5; // Hit movie running
+      }
+    } else if (activeProjects.length === 0) {
+      // Completely idle studio: investor apathy creates sell pressure
+      pressureShift -= 2.8;
+    }
+
+    // 3. Balance sheet debt burden:
+    // If debt > 20% of net worth, credit downgrades dump stock
+    const debtRatio = state.studio.debt > 0 ? (state.studio.debt / state.studio.netWorth) : 0;
+    if (debtRatio > 0.20) {
+      pressureShift -= Math.min(7.0, debtRatio * 15);
+    }
+
+    // 4. RSI Overbought Profit-Taking:
+    // Prevents player from holding indefinitely with guaranteed green days!
+    if (comp.rsi > 68) {
+      pressureShift -= (comp.rsi - 60) * 0.60;
+    } else if (comp.rsi < 35) {
+      pressureShift += (38 - comp.rsi) * 0.50;
+    }
+
+    // 5. Fatigue from consecutive up days
+    if (comp.consecutiveUpDays >= 3) {
+      pressureShift -= 5.0;
+    }
+    if (comp.consecutiveDownDays >= 3) {
+      pressureShift += 4.0;
+    }
+
+    // 6. Diminishing returns on studio valuation
+    if (comp.basePrice && comp.sharePrice > comp.basePrice * 1.4) {
+      const excess = (comp.sharePrice - comp.basePrice * 1.4) / comp.basePrice;
+      pressureShift -= Math.min(8.0, excess * 10);
+    }
+
+    // Apply net shift to buy pressure
+    const noise = (Math.random() - 0.5) * 5.0;
+    comp.buyPressure = Math.max(15, Math.min(85, comp.buyPressure + pressureShift + noise));
+
+    let netMove = ((comp.buyPressure - 50) / 50) * 4.6 + (indexMovePct * 0.5) + (Math.random() - 0.5) * 1.5;
     const cappedMove = Math.max(-8.0, Math.min(8.0, netMove));
 
     const oldPrice = comp.sharePrice;
     comp.sharePrice = Math.max(5, Math.round(comp.sharePrice * (1 + cappedMove / 100)));
     comp.dayChangePct = parseFloat((((comp.sharePrice - oldPrice) / oldPrice) * 100).toFixed(2));
+
+    if (comp.dayChangePct > 0.2) {
+      comp.consecutiveUpDays = (comp.consecutiveUpDays || 0) + 1;
+      comp.consecutiveDownDays = 0;
+    } else if (comp.dayChangePct < -0.2) {
+      comp.consecutiveDownDays = (comp.consecutiveDownDays || 0) + 1;
+      comp.consecutiveUpDays = 0;
+    }
+
     comp.history.push(comp.sharePrice);
     if (comp.history.length > 30) comp.history.shift();
     updateTechnicalIndicators(comp);
 
     state.market.studioSharePrice = comp.sharePrice;
 
-    // Check for hostile takeover threat if equity dropped below 50.1%
+    // Check for hostile takeover threat if player equity dropped below 50.1%
     if ((state.player.studioEquityPercentage || 1.0) < 0.501 && Math.random() < 0.04) {
       state.feed.unshift({
         id: 'evt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
@@ -158,7 +411,7 @@ window.StudioGame.Systems.Market = (function() {
   }
 
   /**
-   * Buy shares of a company
+   * Buy shares of a company with order book liquidity impact
    */
   function buyShares(state, ticker, sharesCount) {
     ensureMarketState(state);
@@ -193,14 +446,15 @@ window.StudioGame.Systems.Market = (function() {
       });
     }
 
-    // Slightly increase buy pressure
-    comp.buyPressure = Math.min(85, comp.buyPressure + 2);
+    // Realistic order book impact: buying large volume temporarily pushes buy pressure up
+    const impact = Math.min(8, Math.max(1, Math.round(totalCost / 25000000)));
+    comp.buyPressure = Math.min(85, comp.buyPressure + impact);
 
     return { success: true, totalCost };
   }
 
   /**
-   * Sell shares of a company
+   * Sell shares of a company with realistic order book sell pressure
    */
   function sellShares(state, ticker, sharesCount) {
     ensureMarketState(state);
@@ -229,8 +483,9 @@ window.StudioGame.Systems.Market = (function() {
       state.market.portfolio.splice(holdingIdx, 1);
     }
 
-    // Slightly increase sell pressure
-    comp.buyPressure = Math.max(15, comp.buyPressure - 2);
+    // Realistic order book impact: dumping large volume onto Dalal Street triggers sell pressure!
+    const sellImpact = Math.min(12, Math.max(1, Math.round(proceeds / 20000000)));
+    comp.buyPressure = Math.max(15, comp.buyPressure - sellImpact);
 
     return { success: true, proceeds };
   }
@@ -288,15 +543,19 @@ window.StudioGame.Systems.Market = (function() {
       name: state.studio.name + ' Ltd.',
       sector: 'Film Production & Cinema IP',
       sharePrice: initialPrice,
+      basePrice: initialPrice,
       sharesTotal: totalShares,
       peRatio: 22.0,
+      basePE: 22.0,
       debtEquity: state.studio.debt > 0 ? (state.studio.debt / state.studio.netWorth).toFixed(2) : 0.05,
       cashReserves: state.studio.cash,
-      buyPressure: 78,
-      trend: 'strong_bullish',
-      rsi: 70,
-      history: [Math.round(initialPrice * 0.95), initialPrice],
-      dayChangePct: 5.2
+      buyPressure: 65,
+      trend: 'bullish',
+      rsi: 58,
+      history: [Math.round(initialPrice * 0.96), initialPrice],
+      dayChangePct: 4.2,
+      consecutiveUpDays: 1,
+      consecutiveDownDays: 0
     });
 
     state.feed.unshift({
@@ -313,8 +572,8 @@ window.StudioGame.Systems.Market = (function() {
   }
 
   function getDemandLabel(buyPressure) {
-    if (buyPressure >= 75) return '🔥 Institutional Inflow Surge';
-    if (buyPressure >= 60) return '🟢 Buyers Rushing In';
+    if (buyPressure >= 72) return '🔥 Institutional Inflow Surge';
+    if (buyPressure >= 58) return '🟢 Buyers Rushing In';
     if (buyPressure >= 45) return '🟡 Balanced Sideways Flow';
     if (buyPressure >= 30) return '🟠 Heavy Profit Booking';
     return '🔴 Panic Selling Climax';

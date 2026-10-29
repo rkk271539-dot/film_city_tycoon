@@ -422,11 +422,9 @@ window.StudioGame.UI.StudiosScreen = (function() {
                         <span class="font-mono font-bold highlight-gold">${formatRupees(s.netWorth)}</span>
                       </td>
                       <td class="td-action">
-                        ${!isPlayer ? `
-                          <button class="btn btn-xs btn-secondary btn-view-studio" data-studio-id="${s.id}">
-                            Inside
-                          </button>
-                        ` : '<span class="badge badge-emerald">You</span>'}
+                        <button class="btn btn-xs btn-secondary btn-view-studio" data-studio-id="${s.id}">
+                          ${isPlayer ? 'Your Studio' : 'Inside'}
+                        </button>
                       </td>
                     </tr>
                   `;
@@ -508,6 +506,7 @@ window.StudioGame.UI.StudiosScreen = (function() {
    */
     function getStudioSubTabTitle(tab) {
     if (tab === 'stars') return '⭐ Contracted Stars & Poaching';
+    if (tab === 'top_projects') return '🏆 All-Time Top 5 Box Office Blockbusters';
     if (tab === 'overview') return '🏛️ Financials & Studio IP';
     if (tab === 'theatre') return '🎟️ Theatrical Box Office Runs';
     if (tab === 'diplomacy') return '🤝 Co-Production & Alliances';
@@ -518,7 +517,47 @@ window.StudioGame.UI.StudiosScreen = (function() {
     const existing = document.getElementById('studioDossierModal');
     if (existing) existing.remove();
 
-    const studio = [...state.studios.legacy, ...state.studios.unicorns].find(s => s.id === studioId);
+    let studio;
+    if (studioId === 'player_studio') {
+      const completed = (state.studio.completedProjects || []);
+      const topProjects = completed.map(p => ({
+        title: p.title,
+        format: p.format || 'Theatrical Feature Film',
+        stars: p.castNames || ['Ensemble Cast'],
+        director: p.directorName || state.player.name,
+        boxOfficeGross: p.boxOfficeGross || 0,
+        budget: p.budget || 0,
+        verdict: p.verdict || 'Hit',
+        year: 2026,
+        completedDay: p.completedDay || 1
+      })).sort((a, b) => b.boxOfficeGross - a.boxOfficeGross).slice(0, 5);
+
+      studio = {
+        id: 'player_studio',
+        name: state.studio.name,
+        founder: state.player.name,
+        netWorth: state.studio.netWorth,
+        cash: state.player.cash,
+        isPlayer: true,
+        isUnicorn: false,
+        reputation: state.studio.reputation,
+        attitude: 'friendly',
+        signatureGenres: ['Versatile Commercial', 'High Glamour Cinema'],
+        isPublic: !!state.market?.isStudioPublic,
+        ticker: state.market?.studioTicker || null,
+        filmsCount: completed.length,
+        boxOfficeRecord: topProjects.length > 0 ? topProjects[0].boxOfficeGross : 0,
+        activeReleases: (state.studio.activeProjects || []).filter(p => p.format && p.theatricalWeek > 0).map(p => ({
+          title: p.title,
+          week: p.theatricalWeek,
+          weeklyGross: p.lastWeekGross || 0,
+          totalGross: p.boxOfficeGross || 0
+        })),
+        topProjects: topProjects
+      };
+    } else {
+      studio = [...state.studios.legacy, ...state.studios.unicorns].find(s => s.id === studioId);
+    }
     if (!studio) return;
 
     const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
@@ -568,6 +607,15 @@ window.StudioGame.UI.StudiosScreen = (function() {
                     <div class="action-hub-title">Contracted Stars</div>
                     <div class="action-hub-subtitle">${contractedStars.length} Stars Under Exclusive Contract</div>
                     <div class="action-hub-badge badge-gold">${contractedStars.length} Stars</div>
+                  </div>
+                </div>
+
+                <div class="action-hub-card" data-dossier-tab="top_projects">
+                  <div class="action-hub-icon-wrap" style="background: linear-gradient(135deg, #f59e0b, #ef4444); color: #fff;">🏆</div>
+                  <div class="action-hub-content">
+                    <div class="action-hub-title">Top 5 All-Time Hits</div>
+                    <div class="action-hub-subtitle">${(studio.topProjects || []).length} Blockbusters & Star Cast</div>
+                    <div class="action-hub-badge badge-gold">🏆 Records</div>
                   </div>
                 </div>
 
@@ -758,6 +806,69 @@ window.StudioGame.UI.StudiosScreen = (function() {
                 </div>
               </div>
             ` : ''}
+
+            <!-- TAB 5: TOP 5 ALL-TIME BOX OFFICE BLOCKBUSTERS -->
+            ${activeDossierTab === 'top_projects' ? `
+              <div class="studio-dossier-section">
+                <div class="top-projects-header mb-3">
+                  <h4 class="section-title text-base font-bold flex items-center gap-2">
+                    <span>🏆</span> Top 5 All-Time Box Office Champions
+                  </h4>
+                  <p class="text-xs text-muted">Audited historical cinema productions ranked by lifetime worldwide gross collections, headliner cast, and verdicts.</p>
+                </div>
+
+                ${(studio.topProjects && studio.topProjects.length > 0) ? `
+                  <div class="top-projects-container">
+                    ${studio.topProjects.slice(0, 5).map((proj, idx) => {
+                      const medals = ['🥇', '🥈', '🥉', '🎬', '🎬'];
+                      const medal = medals[idx] || '🎬';
+                      const castStr = Array.isArray(proj.stars) ? proj.stars.join(', ') : (proj.stars || 'Ensemble Cast');
+                      const roi = proj.budget && proj.budget > 0 ? (proj.boxOfficeGross / proj.budget).toFixed(1) + 'x ROI' : '';
+                      const verdictClass = getVerdictBadgeClass(proj.verdict);
+
+                      return `
+                        <div class="top-project-card ${idx === 0 ? 'rank-1' : ''}">
+                          <div class="top-project-medal-col">
+                            <span class="top-project-medal">${medal}</span>
+                            <span class="top-project-rank-num font-mono">#${idx + 1}</span>
+                          </div>
+
+                          <div class="top-project-main">
+                            <div class="top-project-title-row">
+                              <h5 class="top-project-title">${escapeHtml(proj.title)}</h5>
+                              <span class="badge ${verdictClass}">${escapeHtml(proj.verdict || 'Hit')}</span>
+                              <span class="badge badge-slate text-xs">${escapeHtml(proj.format || 'Theatrical Feature')}</span>
+                            </div>
+
+                            <div class="top-project-stars-row">
+                              <span>⭐ Cast: <strong class="text-main">${escapeHtml(castStr)}</strong></span>
+                              ${proj.director ? `<span>&bull; Dir: <em>${escapeHtml(proj.director)}</em></span>` : ''}
+                            </div>
+
+                            <div class="top-project-meta-row">
+                              <span>📅 Released: ${proj.year || 2024}</span>
+                              ${proj.budget ? `<span>&bull; Budget: ${formatRupees(proj.budget)}</span>` : ''}
+                              ${roi ? `<span class="highlight-emerald font-bold">&bull; ${roi}</span>` : ''}
+                            </div>
+                          </div>
+
+                          <div class="top-project-gross-col">
+                            <div class="top-project-gross-lbl">Worldwide Gross</div>
+                            <div class="top-project-gross-val">${formatRupees(proj.boxOfficeGross)}</div>
+                          </div>
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+                ` : `
+                  <div class="empty-results-box text-center p-4">
+                    <span class="empty-icon">🏆</span>
+                    <h4>No Historical Releases Recorded</h4>
+                    <p>${escapeHtml(studio.name)} has not completed any theatrical productions in the box office archives yet.</p>
+                  </div>
+                `}
+              </div>
+            ` : ''}
           </div>
 
           <div class="modal-footer">
@@ -826,6 +937,17 @@ window.StudioGame.UI.StudiosScreen = (function() {
 
     document.body.appendChild(backdrop);
     renderDossierView();
+  }
+
+  function getVerdictBadgeClass(verdict) {
+    if (!verdict) return 'badge-slate';
+    const v = String(verdict).toLowerCase();
+    if (v.includes('all-time') || v.includes('all time')) return 'badge-gold';
+    if (v.includes('blockbuster')) return 'badge-emerald';
+    if (v.includes('super hit')) return 'badge-indigo';
+    if (v.includes('hit')) return 'badge-amber';
+    if (v.includes('flop') || v.includes('disaster')) return 'badge-rose';
+    return 'badge-slate';
   }
 
   function capitalize(str) {

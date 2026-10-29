@@ -333,6 +333,16 @@ window.StudioGame.Systems.Projects = (function() {
 
     state.studio.projects.push(newFeature);
 
+    // Reset idle days and boost star loyalty on greenlight
+    if (leadActor) {
+      leadActor.daysIdle = 0;
+      leadActor.loyalty = Math.min(100, (leadActor.loyalty || 60) + 6);
+    }
+    if (leadActress) {
+      leadActress.daysIdle = 0;
+      leadActress.loyalty = Math.min(100, (leadActress.loyalty || 60) + 6);
+    }
+
     state.feed.unshift({
       id: 'evt_film_launch_' + Date.now(),
       day: state.clock.day,
@@ -648,7 +658,9 @@ window.StudioGame.Systems.Projects = (function() {
           verdict: verdict
         });
         if (roi >= 1.3) {
-          t.fans = Math.round(t.fans * 1.15);
+          const boostType = roi >= 2.5 ? 'all_time_blockbuster' : (roi >= 1.8 ? 'blockbuster' : 'hit_film');
+          const growth = window.StudioGame.Systems.Talent.calculateFanGrowth(t.fans, boostType);
+          t.fans += growth.growth;
           t.reputation = Math.min(100, t.reputation + 4);
           t.loyalty = Math.min(100, (t.loyalty || 60) + 15);
           t.relationship = Math.min(100, (t.relationship || 50) + 15);

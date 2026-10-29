@@ -970,19 +970,20 @@ window.StudioGame.UI.TalentScreen = (function() {
               </div>
             ` : `
               <div class="negotiation-form">
-                <h4 class="negotiation-form-title">🤝 Negotiate Studio Contract (1 to 6 Months)</h4>
-                <p class="negotiation-form-sub">Pitch an exclusive retention contract to secure ${talent.name} for upcoming films at an 80% production discount.</p>
+                <h4 class="negotiation-form-title">🤝 Negotiate Studio Contract (3 to 36 Months)</h4>
+                <p class="negotiation-form-sub">Pitch an exclusive retention contract to secure ${talent.name} for upcoming films & web series at an 80% production discount.</p>
 
                 <div class="negotiation-inputs-grid">
                   <div class="form-group">
                     <label class="form-label">Contract Duration</label>
                     <select id="negMonths" class="form-input">
-                      <option value="1">1 Month (30 Days Retention)</option>
-                      <option value="2">2 Months (60 Days Retention)</option>
-                      <option value="3" selected>3 Months (90 Days - Standard)</option>
-                      <option value="4">4 Months (120 Days Retention)</option>
-                      <option value="5">5 Months (150 Days Retention)</option>
-                      <option value="6">6 Months (180 Days Exclusive)</option>
+                      <option value="3">3 Months (90 Days - Short Shoot)</option>
+                      <option value="6">6 Months (180 Days - Mini Pipeline)</option>
+                      <option value="12" selected>12 Months (1 Year - Feature Film / Series)</option>
+                      <option value="18">18 Months (1.5 Years - Mega Blockbuster)</option>
+                      <option value="24">24 Months (2 Years - Franchise Retention)</option>
+                      <option value="30">30 Months (2.5 Years - Studio Tentpole)</option>
+                      <option value="36">36 Months (3 Years - National Empire Contract)</option>
                     </select>
                   </div>
 
@@ -999,13 +1000,13 @@ window.StudioGame.UI.TalentScreen = (function() {
                 <div class="form-group mt-2">
                   <div class="slider-header-row">
                     <label class="form-label">Upfront Signing Bonus</label>
-                    <span class="slider-display-val highlight-gold font-mono font-bold" id="upfrontDisplay">${formatRupees(Math.round(talent.averageFee * 0.85))}</span>
+                    <span class="slider-display-val highlight-gold font-mono font-bold" id="upfrontDisplay">${formatRupees(Math.round(talent.averageFee * window.StudioGame.Systems.Talent.getDurationMultiplier(12)))}</span>
                   </div>
                   <input type="range" class="form-range" id="negUpfrontSlider"
                     min="${Math.round(talent.averageFee * 0.25)}"
                     max="${Math.round(talent.averageFee * 3.5)}"
                     step="${Math.max(10000, Math.round(talent.averageFee / 20))}"
-                    value="${Math.round(talent.averageFee * 0.85)}">
+                    value="${Math.round(talent.averageFee * window.StudioGame.Systems.Talent.getDurationMultiplier(12))}">
                   <div class="slider-extremes">
                     <span>${formatRupees(talent.averageFee * 0.25)}</span>
                     <span>${formatRupees(talent.averageFee * 3.5)}</span>
@@ -1130,12 +1131,12 @@ window.StudioGame.UI.TalentScreen = (function() {
 
     // Extend contract
     backdrop.querySelector('#btnOpenExtendModal')?.addEventListener('click', () => {
-      const additional = 3;
+      const additional = 6; // +6 months extension
       const res = window.StudioGame.Systems.Talent.extendContract(state, talent.id, additional);
       if (res.success) {
         window.StudioGame.State.autosave();
         callbacks.onStateChange?.();
-        window.StudioGame.App.showToast(`📜 Extended contract by +${additional} months (+90 days)!`);
+        window.StudioGame.App.showToast(`📜 Extended contract by +${additional} months (+180 days)!`);
         close();
         openTalentDossierModal(talent.id, state, callbacks);
       } else {

@@ -64,18 +64,73 @@ window.StudioGame.Systems.Talent = (function() {
   }
 
   /**
-   * Get duration fee multiplier for 1 to 6 month contracts
+   * Flexible duration fee multipliers for 3, 6, 12, 18, 24, 30, 36 month contracts
    */
   function getDurationMultiplier(months) {
-    switch (parseInt(months, 10)) {
+    const m = parseInt(months, 10) || 12;
+    switch (m) {
       case 1: return 0.35;
-      case 2: return 0.60;
-      case 3: return 0.85;
-      case 4: return 1.10;
-      case 5: return 1.35;
-      case 6: return 1.60;
-      default: return months > 6 ? 1.60 + (months - 6) * 0.25 : 0.35;
+      case 2: return 0.50;
+      case 3: return 0.65;
+      case 4: return 0.78;
+      case 5: return 0.90;
+      case 6: return 1.00;
+      case 12: return 1.75;
+      case 18: return 2.35;
+      case 24: return 2.90;
+      case 30: return 3.40;
+      case 36: return 3.90;
+      default: {
+        if (m <= 6) return 0.35 + (m - 1) * 0.13;
+        if (m <= 12) return 1.00 + (m - 6) * 0.125;
+        if (m <= 24) return 1.75 + (m - 12) * 0.095;
+        return 2.90 + (m - 24) * 0.083;
+      }
     }
+  }
+
+  /**
+   * Diminishing returns fan growth engine (Section 3.3 & v1.05 Requirement):
+   * High fame stars (1 Cr - 3 Cr+) get 0.4% - 1.5% increases.
+   * Newcomers & emerging talents (< 10 Lakhs) get 5% - 18% rapid growth boosts.
+   */
+  function calculateFanGrowth(currentFans, boostType = 'pr_push') {
+    const fans = Math.max(1000, parseInt(currentFans, 10) || 50000);
+    let pct = 0.05;
+
+    if (fans >= 30000000) {
+      // 3 Cr+ Megastars: 0.4% to 0.8%
+      pct = 0.004 + (Math.random() * 0.004);
+    } else if (fans >= 10000000) {
+      // 1 Cr to 3 Cr Superstars: 0.8% to 1.5%
+      pct = 0.008 + (Math.random() * 0.007);
+    } else if (fans >= 3000000) {
+      // 30 Lakhs to 1 Cr A-Listers: 1.5% to 3.0%
+      pct = 0.015 + (Math.random() * 0.015);
+    } else if (fans >= 1000000) {
+      // 10 Lakhs to 30 Lakhs Acclaimed: 3.0% to 5.5%
+      pct = 0.03 + (Math.random() * 0.025);
+    } else if (fans >= 250000) {
+      // 2.5 Lakhs to 10 Lakhs Rising Stars: 5.0% to 9.0%
+      pct = 0.05 + (Math.random() * 0.04);
+    } else {
+      // Newcomers (< 2.5 Lakhs): 8.0% to 18.0%
+      pct = 0.08 + (Math.random() * 0.10);
+    }
+
+    let mult = 1.0;
+    if (boostType === 'brand_ad') mult = 0.45;
+    else if (boostType === 'makeover') mult = 0.60;
+    else if (boostType === 'hit_film') mult = 0.80;
+    else if (boostType === 'blockbuster') mult = 1.30;
+    else if (boostType === 'all_time_blockbuster') mult = 1.80;
+
+    let growth = Math.round(fans * pct * mult);
+    growth = Math.max(5000, growth);
+    return {
+      growth,
+      percentage: (pct * mult * 100).toFixed(1)
+    };
   }
 
   /**
@@ -114,6 +169,20 @@ window.StudioGame.Systems.Talent = (function() {
       if (Math.random() < 0.05) {
         const delta = Math.random() > 0.5 ? 1 : -1;
         talent.fitness = Math.max(40, Math.min(100, talent.fitness + delta));
+      }
+
+      // 2a. Dynamic Relations & Idleness Tracking for Studio Stars
+      if (talent.contractStatus === 'signed_player') {
+        const isShooting = (state.studio.projects || []).some(p => p.leadActorId === talent.id || p.leadActressId === talent.id);
+        if (isShooting) {
+          talent.daysIdle = 0;
+        } else {
+          talent.daysIdle = (talent.daysIdle || 0) + 1;
+          // After 60 days without shooting, loyalty drops slightly if neglected
+          if (talent.daysIdle > 60 && talent.daysIdle % 15 === 0) {
+            talent.loyalty = Math.max(25, (talent.loyalty || 60) - 1);
+          }
+        }
       }
 
       // 2b. Secondary Debt Market Buyout Offers from Rival Studios
@@ -175,7 +244,7 @@ window.StudioGame.Systems.Talent = (function() {
 
     const upfrontOffered = parseInt(offer.upfrontFee, 10) || 0;
     const profitShareOffered = parseInt(offer.profitShare, 10) || 0;
-    const durationMonths = Math.max(1, Math.min(6, parseInt(offer.contractMonths, 10) || 3));
+    const durationMonths = Math.max(1, Math.min(36, parseInt(offer.contractMonths, 10) || 12));
     const intimacyClause = offer.intimacyClause || 'standard';
 
     const mult = getDurationMultiplier(durationMonths);
@@ -186,9 +255,15 @@ window.StudioGame.Systems.Talent = (function() {
       baseRequired *= 0.85;
     }
 
-    // Relationship bonus: close friendship lowers required fee
+    // Relationship bonus & High Loyalty Discount
     const relBonus = ((talent.relationship || 40) - 40) * 0.3; // -6 to +18%
     baseRequired *= (1 - (relBonus / 100));
+
+    if (talent.loyalty >= 80) {
+      baseRequired *= 0.82; // 18% loyalty discount
+    } else if (talent.loyalty <= 40) {
+      baseRequired *= 1.25; // Discontent star demands 25% premium
+    }
 
     // Evaluate perks & penalties
     let score = (upfrontOffered / Math.max(1, baseRequired)) * 55;
@@ -273,7 +348,7 @@ window.StudioGame.Systems.Talent = (function() {
     // Deduct upfront from studio
     state.studio.cash -= upfront;
 
-    const months = Math.max(1, Math.min(6, parseInt(terms.contractMonths, 10) || 3));
+    const months = Math.max(1, Math.min(36, parseInt(terms.contractMonths, 10) || 12));
     talent.contractStatus = 'signed_player';
     talent.contractWith = state.studio.name;
     talent.contractWithStudioId = 'player_studio';
@@ -354,7 +429,7 @@ window.StudioGame.Systems.Talent = (function() {
     }
 
     const rivalStudioName = talent.contractWith || 'Rival Studio';
-    const months = Math.max(1, Math.min(6, parseInt(offerMonths, 10) || 3));
+    const months = Math.max(1, Math.min(36, parseInt(offerMonths, 10) || 12));
 
     // Poaching requires paying 1.5x upfront bonus to the star + 50% buyout penalty to the rival studio
     const starFee = Math.round(talent.averageFee * getDurationMultiplier(months) * 1.5);
@@ -443,12 +518,13 @@ window.StudioGame.Systems.Talent = (function() {
         state.studio.cash -= cost;
         const payout = 2800000; // +13L net profit
         state.studio.cash += payout;
-        talent.fans = Math.round(talent.fans + 350000);
+        const growth = calculateFanGrowth(talent.fans, 'brand_ad');
+        talent.fans += growth.growth;
         talent.reputation = Math.min(100, talent.reputation + 3);
         talent.loyalty = Math.min(100, (talent.loyalty || 60) + 8);
         return {
           success: true,
-          message: `Pitched ${talent.name} for high-profile luxury brand endorsements. Earned ${formatRupees(payout)} commercial revenue (+${formatRupees(payout - cost)} net profit) and +350K Fans!`
+          message: `Pitched ${talent.name} for high-profile luxury brand endorsements. Earned ${formatRupees(payout)} commercial revenue (+${formatRupees(payout - cost)} net profit) and +${formatFanCount(growth.growth)} Fans (+${growth.percentage}% boost)!`
         };
       }
 
@@ -474,13 +550,14 @@ window.StudioGame.Systems.Talent = (function() {
         if (state.studio.cash < cost) return { success: false, error: `Requires ${formatRupees(cost)} studio capital.` };
         state.studio.cash -= cost;
         talent.glamour = Math.min(100, talent.glamour + 15);
-        talent.fans = Math.round(talent.fans + 500000);
+        const growth = calculateFanGrowth(talent.fans, 'makeover');
+        talent.fans += growth.growth;
         if (params.targetImage) {
           talent.pureImage = params.targetImage;
         }
         return {
           success: true,
-          message: `Redesigned ${talent.name}'s public wardrobe and red carpet glamour styling (+15 Glamour, +500K Fans).`
+          message: `Redesigned ${talent.name}'s public wardrobe and red carpet glamour styling (+15 Glamour, +${formatFanCount(growth.growth)} Fans, +${growth.percentage}% boost).`
         };
       }
 
@@ -489,12 +566,12 @@ window.StudioGame.Systems.Talent = (function() {
         const cost = 1800000;
         if (state.studio.cash < cost) return { success: false, error: `Requires ${formatRupees(cost)} studio capital.` };
         state.studio.cash -= cost;
-        const fanGain = 1200000 + Math.floor(Math.random() * 1000000);
-        talent.fans = Math.round(talent.fans + fanGain);
+        const growth = calculateFanGrowth(talent.fans, 'pr_push');
+        talent.fans += growth.growth;
         talent.reputation = Math.min(100, talent.reputation + 8);
         return {
           success: true,
-          message: `Launched a nationwide viral social media & paparazzi media campaign for ${talent.name} (+${(fanGain/1000000).toFixed(1)}M Fans, +8 Reputation)!`
+          message: `Launched a nationwide viral social media & paparazzi media campaign for ${talent.name} (+${formatFanCount(growth.growth)} Fans, +${growth.percentage}% boost, +8 Reputation)!`
         };
       }
 
@@ -756,6 +833,7 @@ window.StudioGame.Systems.Talent = (function() {
     extendContract,
     poachTalent,
     interactWithTalent,
+    calculateFanGrowth,
     purchaseTalentDebt,
     acceptRivalDebtBuyout,
     rejectRivalDebtBuyout,

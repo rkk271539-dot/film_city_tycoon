@@ -8,7 +8,7 @@ window.StudioGame = window.StudioGame || {};
 window.StudioGame.UI = window.StudioGame.UI || {};
 
 window.StudioGame.UI.ActionsScreen = (function() {
-  let activeSubTab = 'cinema'; // 'cinema' | 'bids' | 'pipeline' | 'personal' | 'commission' | 'upgrades'
+  let activeSubTab = 'hub'; // 'hub' | 'cinema' | 'bids' | 'pipeline' | 'archive' | 'personal' | 'commission' | 'upgrades' // 'cinema' | 'bids' | 'pipeline' | 'personal' | 'commission' | 'upgrades'
 
   // Temporary state for Cinema Production
   let cinemaState = {
@@ -97,69 +97,83 @@ window.StudioGame.UI.ActionsScreen = (function() {
 
         <!-- Main Content Area -->
         <main class="page-content-padding">
-          <!-- Card-Based Actions Hub Grid (v1.05 Overhaul) -->
-          <section class="actions-card-hub mb-3">
-            <div class="actions-hub-grid">
-              <div class="action-hub-card ${activeSubTab === 'cinema' ? 'selected' : ''}" data-subtab="cinema">
-                <div class="action-hub-icon-wrap cinema-glow">🎬</div>
-                <div class="action-hub-content">
-                  <div class="action-hub-title">Greenlight Cinema</div>
-                  <div class="action-hub-subtitle">Features, Web Series & Shorts</div>
-                  <div class="action-hub-badge">${activeProjectsCount}/${capacity} Stages Active</div>
-                </div>
+          ${activeSubTab === 'hub' ? `
+            <!-- Exclusive Card-Based Actions Hub Grid (No down-scroll) -->
+            <section class="actions-card-hub mb-3">
+              <div class="actions-hub-header text-center mb-4">
+                <h2 class="text-xl font-bold">🎬 Studio Actions & Operations Center</h2>
+                <p class="text-xs text-muted max-w-md mx-auto">Select a department below to greenlight cinematic productions, oversee running shoots, audit film vaults, expand personal wealth, or bid on client RFPs.</p>
               </div>
 
-              <div class="action-hub-card ${activeSubTab === 'pipeline' ? 'selected' : ''}" data-subtab="pipeline">
-                <div class="action-hub-icon-wrap pipeline-glow">🎥</div>
-                <div class="action-hub-content">
-                  <div class="action-hub-title">Active Floor Pipeline</div>
-                  <div class="action-hub-subtitle">Running shoots & live box office</div>
-                  <div class="action-hub-badge ${activeProjectsCount > 0 ? 'badge-live' : ''}">${activeProjectsCount > 0 ? `${activeProjectsCount} Running` : 'Idle'}</div>
+              <div class="actions-hub-grid">
+                <div class="action-hub-card" data-subtab="cinema">
+                  <div class="action-hub-icon-wrap cinema-glow">🎬</div>
+                  <div class="action-hub-content">
+                    <div class="action-hub-title">Greenlight Cinema</div>
+                    <div class="action-hub-subtitle">Features, Web Series & Shorts</div>
+                    <div class="action-hub-badge">${activeProjectsCount}/${capacity} Stages Active</div>
+                  </div>
                 </div>
-              </div>
 
-              <div class="action-hub-card ${activeSubTab === 'archive' ? 'selected' : ''}" data-subtab="archive">
-                <div class="action-hub-icon-wrap archive-glow">📜</div>
-                <div class="action-hub-content">
-                  <div class="action-hub-title">Past Projects & Vault</div>
-                  <div class="action-hub-subtitle">Audited statements & OTT royalties</div>
-                  <div class="action-hub-badge badge-gold">${(state.studio.completedProjects || []).length} Archived</div>
+                <div class="action-hub-card" data-subtab="pipeline">
+                  <div class="action-hub-icon-wrap pipeline-glow">🎥</div>
+                  <div class="action-hub-content">
+                    <div class="action-hub-title">Active Floor Pipeline</div>
+                    <div class="action-hub-subtitle">Running shoots & live box office</div>
+                    <div class="action-hub-badge ${activeProjectsCount > 0 ? 'badge-live' : ''}">${activeProjectsCount > 0 ? `${activeProjectsCount} Running` : 'Floors Idle'}</div>
+                  </div>
                 </div>
-              </div>
 
-              <div class="action-hub-card ${activeSubTab === 'personal' ? 'selected' : ''}" data-subtab="personal">
-                <div class="action-hub-icon-wrap personal-glow">👑</div>
-                <div class="action-hub-content">
-                  <div class="action-hub-title">Lifestyle & Personal</div>
-                  <div class="action-hub-subtitle">Penthouses, Maybachs, Galas & Wife</div>
-                  <div class="action-hub-badge">Prestige Clout</div>
+                <div class="action-hub-card" data-subtab="archive">
+                  <div class="action-hub-icon-wrap archive-glow">📜</div>
+                  <div class="action-hub-content">
+                    <div class="action-hub-title">Past Projects & Vault</div>
+                    <div class="action-hub-subtitle">Audited statements & OTT royalties</div>
+                    <div class="action-hub-badge badge-gold">${(state.studio.completedProjects || []).length} Archived</div>
+                  </div>
                 </div>
-              </div>
 
-              <div class="action-hub-card ${activeSubTab === 'bids' ? 'selected' : ''}" data-subtab="bids">
-                <div class="action-hub-icon-wrap bids-glow">📋</div>
-                <div class="action-hub-content">
-                  <div class="action-hub-title">Client RFP Bids</div>
-                  <div class="action-hub-subtitle">Brand ads & competitive shoots</div>
-                  <div class="action-hub-badge">${state.bids.length} Open Briefs</div>
+                <div class="action-hub-card" data-subtab="personal">
+                  <div class="action-hub-icon-wrap personal-glow">👑</div>
+                  <div class="action-hub-content">
+                    <div class="action-hub-title">Lifestyle & Personal</div>
+                    <div class="action-hub-subtitle">Penthouses, Maybachs, Galas & Wife</div>
+                    <div class="action-hub-badge">Prestige Clout</div>
+                  </div>
                 </div>
-              </div>
 
-              <div class="action-hub-card ${activeSubTab === 'upgrades' ? 'selected' : ''}" data-subtab="upgrades">
-                <div class="action-hub-icon-wrap upgrades-glow">🏢</div>
-                <div class="action-hub-content">
-                  <div class="action-hub-title">Studio Lot Upgrades</div>
-                  <div class="action-hub-subtitle">Sound stages, 4K rigs & suites</div>
-                  <div class="action-hub-badge">${state.studio.upgrades.length} Active</div>
+                <div class="action-hub-card" data-subtab="bids">
+                  <div class="action-hub-icon-wrap bids-glow">📋</div>
+                  <div class="action-hub-content">
+                    <div class="action-hub-title">Client RFP Bids</div>
+                    <div class="action-hub-subtitle">Brand ads & competitive shoots</div>
+                    <div class="action-hub-badge">${state.bids.length} Open Briefs</div>
+                  </div>
+                </div>
+
+                <div class="action-hub-card" data-subtab="upgrades">
+                  <div class="action-hub-icon-wrap upgrades-glow">🏢</div>
+                  <div class="action-hub-content">
+                    <div class="action-hub-title">Studio Lot Upgrades</div>
+                    <div class="action-hub-subtitle">Sound stages, 4K rigs & suites</div>
+                    <div class="action-hub-badge">${state.studio.upgrades.length} Active</div>
+                  </div>
                 </div>
               </div>
+            </section>
+          ` : `
+            <!-- Focused Sub-Screen View with Back Navigation -->
+            <div class="subscreen-back-bar mb-3 flex items-center justify-between">
+              <button class="btn btn-sm btn-outline-gold font-bold" id="btnBackToActionsHub">
+                &larr; Back to Actions Hub
+              </button>
+              <span class="badge badge-gold font-mono text-xs uppercase">${getSubTabTitle(activeSubTab)}</span>
             </div>
-          </section>
 
-          <!-- Main Tab Body -->
-          <div class="actions-body mt-3">
-            ${renderSubTabContent(state, activeSubTab, callbacks)}
-          </div>
+            <div class="actions-body">
+              ${renderSubTabContent(state, activeSubTab, callbacks)}
+            </div>
+          ` }
         </main>
       </div>
     `;
@@ -507,6 +521,19 @@ window.StudioGame.UI.ActionsScreen = (function() {
     backdrop.querySelector('#btnCloseAuditModal')?.addEventListener('click', () => backdrop.remove());
     backdrop.querySelector('#btnCloseAuditModalBottom')?.addEventListener('click', () => backdrop.remove());
     document.body.appendChild(backdrop);
+  }
+
+    function getSubTabTitle(tab) {
+    switch (tab) {
+      case 'cinema': return '🎬 Greenlight Cinema & Series';
+      case 'pipeline': return '🎥 Active Floor & Box Office';
+      case 'archive': return '📜 Past Projects & Vault';
+      case 'personal': return '👑 Lifestyle & Personal Assets';
+      case 'bids': return '📋 Client RFP Briefs';
+      case 'commission': return '📸 Custom Commercial Shoots';
+      case 'upgrades': return '🏢 Studio Lot Upgrades';
+      default: return 'Studio Operations';
+    }
   }
 
   function renderCinemaProductionTab(state, callbacks) {
@@ -1103,6 +1130,11 @@ window.StudioGame.UI.ActionsScreen = (function() {
       });
     });
 
+    container.querySelector('#btnBackToActionsHub')?.addEventListener('click', () => {
+      activeSubTab = 'hub';
+      render(container, state, callbacks);
+    });
+
     container.querySelectorAll('.actions-tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         activeSubTab = btn.getAttribute('data-subtab');
@@ -1518,8 +1550,8 @@ window.StudioGame.UI.ActionsScreen = (function() {
    */
   function openQuickContractSignModal(star, state, onSigned) {
     const formatRupees = window.StudioGame.Systems.Finance.formatRupees;
-    let selectedMonths = 3;
-    let upfrontFee = Math.round(star.averageFee * window.StudioGame.Systems.Talent.getDurationMultiplier(3));
+    let selectedMonths = 12;
+    let upfrontFee = Math.round(star.averageFee * window.StudioGame.Systems.Talent.getDurationMultiplier(12));
     let profitShare = 10;
     let intimacyClause = star.pureImage === 'wholesome' ? 'strict_wholesome' : 'standard';
 
@@ -1554,13 +1586,13 @@ window.StudioGame.UI.ActionsScreen = (function() {
               </div>
             </div>
 
-            <!-- Duration Selector (1 to 6 Months) -->
+            <!-- Duration Selector (3 to 36 Months) -->
             <div class="form-group mt-3">
-              <label class="form-label font-bold">Contract Duration (1 to 6 Months)</label>
+              <label class="form-label font-bold">Contract Duration (3 to 36 Months)</label>
               <div class="tenure-pills-row">
-                ${[1, 2, 3, 4, 5, 6].map(m => `
+                ${[3, 6, 12, 18, 24, 30, 36].map(m => `
                   <button class="tenure-pill ${selectedMonths === m ? 'active' : ''}" data-months="${m}">
-                    ${m} Mo (${m * 30}D)
+                    ${m >= 12 ? `${m / 12} Yr (${m * 30}D)` : `${m} Mo (${m * 30}D)`}
                   </button>
                 `).join('')}
               </div>
@@ -1661,6 +1693,7 @@ window.StudioGame.UI.ActionsScreen = (function() {
   }
 
   return {
-    render
+    render,
+    resetToHub: () => { activeSubTab = 'hub'; }
   };
 })();

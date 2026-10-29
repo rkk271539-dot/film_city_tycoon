@@ -124,6 +124,13 @@ window.StudioGame.App = (function() {
           return;
         }
 
+        // Reset to Cards Hub when tapping Actions or Bank
+        if (tabId === 'actions' && window.StudioGame.UI.ActionsScreen?.resetToHub) {
+          window.StudioGame.UI.ActionsScreen.resetToHub();
+        } else if (tabId === 'bank' && window.StudioGame.UI.BankScreen?.resetToHub) {
+          window.StudioGame.UI.BankScreen.resetToHub();
+        }
+
         activeTab = tabId;
         updateActiveTabVisuals();
         routeScreen();

@@ -506,6 +506,14 @@ window.StudioGame.UI.StudiosScreen = (function() {
    * Redesigned Studio Inside Screen:
    * Overview, Contracted Stars Roster with Poaching Buyouts, Theatrical Runs, and Diplomacy.
    */
+    function getStudioSubTabTitle(tab) {
+    if (tab === 'stars') return '⭐ Contracted Stars & Poaching';
+    if (tab === 'overview') return '🏛️ Financials & Studio IP';
+    if (tab === 'theatre') return '🎟️ Theatrical Box Office Runs';
+    if (tab === 'diplomacy') return '🤝 Co-Production & Alliances';
+    return 'Studio Overview';
+  }
+
   function openStudioDossierModal(studioId, state, callbacks) {
     const existing = document.getElementById('studioDossierModal');
     if (existing) existing.remove();
@@ -517,7 +525,7 @@ window.StudioGame.UI.StudiosScreen = (function() {
     const isPublic = studio.isPublic;
     const crestUrl = getStudioCrestSvg(studio.name, studio.founderStarId !== undefined);
 
-    let activeDossierTab = 'stars'; // 'stars' | 'overview' | 'theatre' | 'diplomacy'
+    let activeDossierTab = 'hub'; // 'hub' | 'stars' | 'overview' | 'theatre' | 'diplomacy' // 'stars' | 'overview' | 'theatre' | 'diplomacy'
 
     const backdrop = document.createElement('div');
     backdrop.className = 'modal-backdrop';
@@ -550,23 +558,56 @@ window.StudioGame.UI.StudiosScreen = (function() {
             <button class="btn-icon-close" id="btnCloseStudioModal" aria-label="Close">&times;</button>
           </div>
 
-          <!-- Inside Screen Sub-Tabs -->
-          <div class="dossier-subtabs-nav px-3 pt-2">
-            <button class="dossier-tab-btn ${activeDossierTab === 'stars' ? 'active' : ''}" data-dossier-tab="stars">
-              ⭐ Contracted Stars (${contractedStars.length})
-            </button>
-            <button class="dossier-tab-btn ${activeDossierTab === 'overview' ? 'active' : ''}" data-dossier-tab="overview">
-              🏛️ Financials & IP
-            </button>
-            <button class="dossier-tab-btn ${activeDossierTab === 'theatre' ? 'active' : ''}" data-dossier-tab="theatre">
-              🎟️ Theatrical Runs (${(studio.activeReleases || []).length})
-            </button>
-            <button class="dossier-tab-btn ${activeDossierTab === 'diplomacy' ? 'active' : ''}" data-dossier-tab="diplomacy">
-              🤝 Co-Production
-            </button>
-          </div>
-
           <div class="modal-body studio-modal-body p-3">
+            ${activeDossierTab === 'hub' ? `
+              <!-- Studio Dossier Hub Cards Grid (v1.05 Overhaul) -->
+              <div class="actions-hub-grid mb-3">
+                <div class="action-hub-card" data-dossier-tab="stars">
+                  <div class="action-hub-icon-wrap cinema-glow">⭐</div>
+                  <div class="action-hub-content">
+                    <div class="action-hub-title">Contracted Stars</div>
+                    <div class="action-hub-subtitle">${contractedStars.length} Stars Under Exclusive Contract</div>
+                    <div class="action-hub-badge badge-gold">${contractedStars.length} Stars</div>
+                  </div>
+                </div>
+
+                <div class="action-hub-card" data-dossier-tab="overview">
+                  <div class="action-hub-icon-wrap pipeline-glow">🏛️</div>
+                  <div class="action-hub-content">
+                    <div class="action-hub-title">Financials & Studio IP</div>
+                    <div class="action-hub-subtitle">${formatRupees(studio.netWorth)} Net Worth & Corporate Valuation</div>
+                    <div class="action-hub-badge">Balance Sheet</div>
+                  </div>
+                </div>
+
+                <div class="action-hub-card" data-dossier-tab="theatre">
+                  <div class="action-hub-icon-wrap archive-glow">🎟️</div>
+                  <div class="action-hub-content">
+                    <div class="action-hub-title">Theatrical Runs</div>
+                    <div class="action-hub-subtitle">${(studio.activeReleases || []).length} Running Pan-India Titles</div>
+                    <div class="action-hub-badge">${(studio.activeReleases || []).length} Active</div>
+                  </div>
+                </div>
+
+                <div class="action-hub-card" data-dossier-tab="diplomacy">
+                  <div class="action-hub-icon-wrap personal-glow">🤝</div>
+                  <div class="action-hub-content">
+                    <div class="action-hub-title">Co-Production Alliances</div>
+                    <div class="action-hub-subtitle">Pitch 40% Co-Financing Partnerships</div>
+                    <div class="action-hub-badge badge-emerald">Diplomacy</div>
+                  </div>
+                </div>
+              </div>
+            ` : `
+              <!-- Focused Studio Sub-Screen with Back Navigation -->
+              <div class="subscreen-back-bar mb-3 flex items-center justify-between">
+                <button class="btn btn-sm btn-outline-gold font-bold" id="btnBackToStudioHub">
+                  &larr; Back to Studio Overview
+                </button>
+                <span class="badge badge-gold font-mono text-xs uppercase">${getStudioSubTabTitle(activeDossierTab)}</span>
+              </div>
+            `}
+
             <!-- TAB 1: CONTRACTED STARS & POACHING -->
             ${activeDossierTab === 'stars' ? `
               <div class="rival-stars-section">
@@ -741,6 +782,11 @@ window.StudioGame.UI.StudiosScreen = (function() {
         });
       });
 
+      backdrop.querySelector('#btnBackToStudioHub')?.addEventListener('click', () => {
+        activeDossierTab = 'hub';
+        renderDossierView();
+      });
+
       // Pitch co-production
       backdrop.querySelector('#btnPitchCoProd')?.addEventListener('click', () => {
         const res = window.StudioGame.Systems.Studios.pitchCoProduction(state, studio.id);
@@ -765,7 +811,7 @@ window.StudioGame.UI.StudiosScreen = (function() {
             return window.StudioGame.App.showToast(`⚠️ Insufficient studio capital. Requires ${formatRupees(cost)}.`);
           }
 
-          const res = window.StudioGame.Systems.Talent.poachTalent(state, starId, 3);
+          const res = window.StudioGame.Systems.Talent.poachTalent(state, starId, 12);
           if (res.success) {
             window.StudioGame.State.autosave();
             callbacks.onStateChange?.();

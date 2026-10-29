@@ -8,7 +8,7 @@ window.StudioGame = window.StudioGame || {};
 window.StudioGame.UI = window.StudioGame.UI || {};
 
 window.StudioGame.UI.BankScreen = (function() {
-  let activeSubTab = 'loans'; // 'loans', 'active', 'fd'
+  let activeSubTab = 'hub'; // 'hub' | 'loans' | 'active' | 'fd' // 'loans', 'active', 'fd'
   let selectedLoanType = 'term'; // 'term' | 'mezzanine'
   let loanAmount = 50000000; // 5 Cr default
   let loanTenure = 12; // 12 months
@@ -119,56 +119,80 @@ window.StudioGame.UI.BankScreen = (function() {
             </div>
           </div>
 
-          <!-- Card-Based Treasury Hub (v1.05 Overhaul) -->
-          <section class="bank-card-hub mb-3">
-            <div class="actions-hub-grid">
-              <div class="action-hub-card ${activeSubTab === 'loans' && selectedLoanType === 'term' ? 'selected' : ''}" data-bank-action="term">
-                <div class="action-hub-icon-wrap cinema-glow">💰</div>
-                <div class="action-hub-content">
-                  <div class="action-hub-title">Commercial Term Loan</div>
-                  <div class="action-hub-subtitle">Low 9.0% p.a. &bull; Up to 45% Net Worth</div>
-                  <div class="action-hub-badge">Low Interest</div>
-                </div>
+          ${activeSubTab === 'hub' ? `
+            <!-- Exclusive Treasury Cards Hub (No down-scroll) -->
+            <section class="bank-card-hub mb-3">
+              <div class="actions-hub-header text-center mb-4">
+                <h2 class="text-xl font-bold">🏛️ Imperial Reserve Bank & Treasury</h2>
+                <p class="text-xs text-muted max-w-md mx-auto">Select a credit facility below to apply for collateralized studio loans, mezzanine emergency bridge finance, review active debt, or park cash in fixed deposits.</p>
               </div>
 
-              <div class="action-hub-card ${activeSubTab === 'loans' && selectedLoanType === 'mezzanine' ? 'selected' : ''}" data-bank-action="mezzanine">
-                <div class="action-hub-icon-wrap personal-glow">⚡</div>
-                <div class="action-hub-content">
-                  <div class="action-hub-title">Mezzanine Bridge Credit</div>
-                  <div class="action-hub-subtitle">Fast emergency credit up to ₹5 Cr</div>
-                  <div class="action-hub-badge badge-gold">Instant Approval</div>
+              <div class="actions-hub-grid">
+                <div class="action-hub-card" data-bank-action="term">
+                  <div class="action-hub-icon-wrap cinema-glow">💰</div>
+                  <div class="action-hub-content">
+                    <div class="action-hub-title">Commercial Term Loan</div>
+                    <div class="action-hub-subtitle">Low 9.0% p.a. &bull; Up to 45% Net Worth</div>
+                    <div class="action-hub-badge">Low Interest</div>
+                  </div>
                 </div>
-              </div>
 
-              <div class="action-hub-card ${activeSubTab === 'active' ? 'selected' : ''}" data-bank-action="active">
-                <div class="action-hub-icon-wrap pipeline-glow">📋</div>
-                <div class="action-hub-content">
-                  <div class="action-hub-title">Active Loans & Repayment</div>
-                  <div class="action-hub-subtitle">Monthly EMIs & 1-click payoff in full</div>
-                  <div class="action-hub-badge ${activeLoans.length > 0 ? 'badge-live' : ''}">${activeLoans.length} Active Loans</div>
+                <div class="action-hub-card" data-bank-action="mezzanine">
+                  <div class="action-hub-icon-wrap personal-glow">⚡</div>
+                  <div class="action-hub-content">
+                    <div class="action-hub-title">Mezzanine Bridge Credit</div>
+                    <div class="action-hub-subtitle">Fast emergency credit up to ₹5 Cr</div>
+                    <div class="action-hub-badge badge-gold">Instant Approval</div>
+                  </div>
                 </div>
-              </div>
 
-              <div class="action-hub-card ${activeSubTab === 'fd' ? 'selected' : ''}" data-bank-action="fd">
-                <div class="action-hub-icon-wrap upgrades-glow">🏦</div>
-                <div class="action-hub-content">
-                  <div class="action-hub-title">High-Yield Fixed Deposits</div>
-                  <div class="action-hub-subtitle">7.5% Annual APY &bull; Daily compounding</div>
-                  <div class="action-hub-badge badge-gold">${fixedDeposits.length} Active FDs</div>
+                <div class="action-hub-card" data-bank-action="active">
+                  <div class="action-hub-icon-wrap pipeline-glow">📋</div>
+                  <div class="action-hub-content">
+                    <div class="action-hub-title">Active Loans & Repayment</div>
+                    <div class="action-hub-subtitle">Monthly EMIs & 1-click payoff in full</div>
+                    <div class="action-hub-badge ${activeLoans.length > 0 ? 'badge-live' : ''}">${activeLoans.length} Active Loans</div>
+                  </div>
+                </div>
+
+                <div class="action-hub-card" data-bank-action="fd">
+                  <div class="action-hub-icon-wrap upgrades-glow">🏦</div>
+                  <div class="action-hub-content">
+                    <div class="action-hub-title">High-Yield Fixed Deposits</div>
+                    <div class="action-hub-subtitle">7.5% Annual APY &bull; Daily compounding</div>
+                    <div class="action-hub-badge badge-gold">${fixedDeposits.length} Active FDs</div>
+                  </div>
                 </div>
               </div>
+            </section>
+          ` : `
+            <!-- Focused Banking Sub-Screen View with Back Navigation -->
+            <div class="subscreen-back-bar mb-3 flex items-center justify-between">
+              <button class="btn btn-sm btn-outline-gold font-bold" id="btnBackToBankHub">
+                &larr; Back to Treasury Hub
+              </button>
+              <span class="badge badge-gold font-mono text-xs uppercase">${getBankSubTabTitle(activeSubTab, selectedLoanType)}</span>
             </div>
-          </section>
 
-          <!-- Sub-Tab Views -->
-          ${activeSubTab === 'loans' ? renderLoanApplication(state, curMaxBorrow, annualRate, estEMI, estTotalInterest) : ''}
-          ${activeSubTab === 'active' ? renderActiveLoans(activeLoans, state) : ''}
-          ${activeSubTab === 'fd' ? renderFixedDepositSection(fixedDeposits, state) : ''}
+            <!-- Sub-Tab Views -->
+            ${activeSubTab === 'loans' ? renderLoanApplication(state, curMaxBorrow, annualRate, estEMI, estTotalInterest) : ''}
+            ${activeSubTab === 'active' ? renderActiveLoans(activeLoans, state) : ''}
+            ${activeSubTab === 'fd' ? renderFixedDepositSection(fixedDeposits, state) : ''}
+          `}
         </main>
       </div>
     `;
 
     attachEventListeners(container, state, callbacks);
+  }
+
+    function getBankSubTabTitle(tab, loanType) {
+    if (tab === 'loans') {
+      return loanType === 'term' ? '💰 Commercial Term Loan' : '⚡ Mezzanine Bridge Credit';
+    }
+    if (tab === 'active') return '📋 Active Debt & Amortization';
+    if (tab === 'fd') return '🏦 High-Yield Fixed Deposits';
+    return 'Reserve Bank Treasury';
   }
 
   function renderLoanApplication(state, maxBorrow, annualRate, estEMI, estTotalInterest) {
@@ -441,6 +465,11 @@ window.StudioGame.UI.BankScreen = (function() {
       });
     });
 
+    container.querySelector('#btnBackToBankHub')?.addEventListener('click', () => {
+      activeSubTab = 'hub';
+      render(container, state, callbacks);
+    });
+
     container.querySelectorAll('[data-bank-tab]').forEach(btn => {
       btn.addEventListener('click', () => {
         activeSubTab = btn.getAttribute('data-bank-tab');
@@ -555,6 +584,7 @@ window.StudioGame.UI.BankScreen = (function() {
   }
 
   return {
-    render
+    render,
+    resetToHub: () => { activeSubTab = 'hub'; }
   };
 })();
